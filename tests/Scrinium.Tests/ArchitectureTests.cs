@@ -7,6 +7,7 @@ public sealed class ArchitectureTests
     private static readonly Assembly Core = typeof(Scrinium.Core.Documents.Document).Assembly;
     private static readonly Assembly Storage = typeof(Scrinium.Storage.SqliteStore).Assembly;
     private static readonly Assembly Extraction = typeof(Scrinium.Extraction.PdfTextExtractor).Assembly;
+    private static readonly Assembly Ollama = typeof(Scrinium.Ollama.OllamaMonitor).Assembly;
     private static readonly Assembly Desktop = typeof(Scrinium.Desktop.App).Assembly;
 
     [Fact]
@@ -14,15 +15,16 @@ public sealed class ArchitectureTests
         AssertScriniumReferences(Core);
 
     [Fact]
-    public void Storage_and_Extraction_depend_only_on_Core()
+    public void Storage_Extraction_and_Ollama_depend_only_on_Core()
     {
         AssertScriniumReferences(Storage, "Scrinium.Core");
         AssertScriniumReferences(Extraction, "Scrinium.Core");
+        AssertScriniumReferences(Ollama, "Scrinium.Core");
     }
 
     [Fact]
-    public void Desktop_composes_Core_Storage_and_Extraction() =>
-        AssertScriniumReferences(Desktop, "Scrinium.Core", "Scrinium.Storage", "Scrinium.Extraction");
+    public void Desktop_composes_Core_Storage_Extraction_and_Ollama() =>
+        AssertScriniumReferences(Desktop, "Scrinium.Core", "Scrinium.Storage", "Scrinium.Extraction", "Scrinium.Ollama");
 
     [Fact]
     public void Only_Storage_references_Sqlite() =>
@@ -37,8 +39,8 @@ public sealed class ArchitectureTests
         AssertOnlyReferencedBy("Avalonia", Desktop);
 
     [Fact]
-    public void Only_Desktop_references_OllamaSharp() =>
-        AssertOnlyReferencedBy("OllamaSharp", Desktop);
+    public void Only_Ollama_references_OllamaSharp() =>
+        AssertOnlyReferencedBy("OllamaSharp", Ollama);
 
     [Fact]
     public void Core_names_outcomes_as_states_not_boolean_flags()
@@ -69,7 +71,7 @@ public sealed class ArchitectureTests
 
     private static void AssertOnlyReferencedBy(string prefix, Assembly owner)
     {
-        foreach (var assembly in new[] { Core, Storage, Extraction, Desktop })
+        foreach (var assembly in new[] { Core, Storage, Extraction, Ollama, Desktop })
         {
             var references = assembly.GetReferencedAssemblies()
                 .Any(name => name.Name!.StartsWith(prefix, StringComparison.Ordinal));
