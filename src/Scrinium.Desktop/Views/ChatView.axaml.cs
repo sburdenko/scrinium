@@ -1,6 +1,9 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Scrinium.Desktop.ViewModels;
 
 namespace Scrinium.Desktop.Views;
@@ -13,7 +16,8 @@ public partial class ChatView : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, _) => Attach();
-        Prompt.AddHandler(KeyDownEvent, OnPromptKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        Prompt.AddHandler(KeyDownEvent, OnPromptKeyDown, RoutingStrategies.Tunnel);
+        Messages.AddHandler(TappedEvent, OnMessageTapped, RoutingStrategies.Bubble);
     }
 
     private void Attach()
@@ -38,5 +42,17 @@ public partial class ChatView : UserControl
             send.Execute(null);
 
         e.Handled = true;
+    }
+
+    private void OnMessageTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is not ChatViewModel chat || e.Source is not Control source)
+            return;
+
+        var message = source.FindAncestorOfType<ContentPresenter>()?.DataContext as ChatMessageViewModel
+            ?? source.DataContext as ChatMessageViewModel;
+
+        if (message is not null)
+            chat.FocusMessageCommand.Execute(message);
     }
 }

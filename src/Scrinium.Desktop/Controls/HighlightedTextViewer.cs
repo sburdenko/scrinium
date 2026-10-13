@@ -8,7 +8,6 @@ namespace Scrinium.Desktop.Controls;
 
 public sealed class HighlightedTextViewer : ScrollViewer
 {
-    private const double ContextAbove = 56;
 
     public static readonly StyledProperty<string?> BeforeProperty =
         AvaloniaProperty.Register<HighlightedTextViewer, string?>(nameof(Before));
@@ -19,7 +18,7 @@ public sealed class HighlightedTextViewer : ScrollViewer
     public static readonly StyledProperty<string?> AfterProperty =
         AvaloniaProperty.Register<HighlightedTextViewer, string?>(nameof(After));
 
-    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, LineHeight = 22 };
+    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, LineHeight = 24, FontSize = 14 };
 
     static HighlightedTextViewer()
     {
@@ -67,14 +66,15 @@ public sealed class HighlightedTextViewer : ScrollViewer
 
         _text.Inlines ??= new InlineCollection();
         _text.Inlines.Clear();
-        _text.Inlines.Add(new Run(before));
+        var muted = FindBrush("InkMuted");
+        _text.Inlines.Add(new Run(before) { Foreground = muted });
         _text.Inlines.Add(new Run(highlight)
         {
             Background = FindBrush("Highlight"),
             Foreground = FindBrush("HighlightInk"),
-            FontWeight = FontWeight.Medium
+            FontWeight = FontWeight.SemiBold
         });
-        _text.Inlines.Add(new Run(After ?? ""));
+        _text.Inlines.Add(new Run(After ?? "") { Foreground = muted });
 
         Offset = default;
         if (highlight.Length > 0)
@@ -88,7 +88,7 @@ public sealed class HighlightedTextViewer : ScrollViewer
 
         UpdateLayout();
         var caret = _text.TextLayout.HitTestTextPosition(textPosition);
-        Offset = new Vector(0, Math.Max(0, caret.Top - ContextAbove));
+        Offset = new Vector(0, Math.Max(0, caret.Top - Viewport.Height / 3));
     }
 
     private IBrush? FindBrush(string key) =>

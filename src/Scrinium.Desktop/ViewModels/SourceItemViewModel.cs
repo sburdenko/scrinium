@@ -38,6 +38,17 @@ public sealed class SourceItemViewModel(Document document, string currentEmbeddi
         _ => ""
     };
 
+    public string StateLabel { get; } = document.State switch
+    {
+        IndexState.Pending => "Queued",
+        IndexState.Indexing => "Indexing",
+        IndexState.Ready ready when ready.EmbeddingModel != currentEmbeddingModel => "Needs reindex",
+        IndexState.Ready => "Ready",
+        _ => "Failed"
+    };
+
+    public bool CanRetry => IsFailed;
+
     public bool IsFailed => Status == SourceStatus.Failed;
 
     public bool IsBusy => Status is SourceStatus.Waiting or SourceStatus.Indexing;

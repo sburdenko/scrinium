@@ -7,18 +7,48 @@ namespace Scrinium.Desktop.ViewModels;
 
 public sealed partial class ChatMessageViewModel : ObservableObject
 {
-    private ChatMessageViewModel(bool isUser, string text, MessagePhase phase)
+    private ChatMessageViewModel(bool isUser, string text, MessagePhase phase, bool ruleAbove = false)
     {
         IsUser = isUser;
         _text = text;
         _phase = phase;
+        ShowRuleAbove = ruleAbove;
+        Asked = DateTimeOffset.Now;
     }
 
-    public static ChatMessageViewModel FromUser(string text) => new(true, text, MessagePhase.Done);
+    public static ChatMessageViewModel FromUser(string text, bool ruleAbove = false) =>
+        new(true, text, MessagePhase.Done, ruleAbove);
+
+    public bool ShowRuleAbove { get; }
 
     public static ChatMessageViewModel NewAssistant() => new(false, "", MessagePhase.Searching);
 
     public bool IsUser { get; }
+
+    public DateTimeOffset Asked { get; }
+
+    public string MetaLine => $"You asked · {Asked:HH:mm}";
+
+    public string StatsLine
+    {
+        get
+        {
+            var cited = Citations.Count(c => c.IsCited);
+            var fragments = Citations.Count == 1 ? "1 fragment retrieved" : $"{Citations.Count} fragments retrieved";
+            return $"{fragments} · {cited} cited · Answered from your documents only";
+        }
+    }
+
+    public bool HasStats => IsFinished && HasCitations;
+
+    [ObservableProperty]
+    private int? _activeCitationNumber;
+
+    partial void OnActiveCitationNumberChanged(int? value)
+    {
+        foreach (var citation in Citations)
+            citation.IsActive = citation.Number == value;
+    }
 
     public bool IsAssistant => !IsUser;
 
@@ -81,6 +111,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasCitations));
         OnPropertyChanged(nameof(SourcesHeader));
+        OnActiveCitationNumberChanged(ActiveCitationNumber);
         Phase = MessagePhase.Composing;
         OnPropertyChanged(nameof(StatusLine));
     }
@@ -88,9 +119,11 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     public void RefineSources(IReadOnlyList<Citation> citations)
     {
         Citations.Clear();
+        var cited = CitationMarkers.CitedNumbers(Text);
         foreach (var citation in citations)
-            Citations.Add(new CitationViewModel(citation));
+            Citations.Add(new CitationViewModel(citation) { IsCited = cited.Contains(citation.Number) });
 
+        OnActiveCitationNumberChanged(ActiveCitationNumber);
         OnPropertyChanged(nameof(SourcesHeader));
     }
 
@@ -118,5 +151,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 
         Phase = phase;
         OnPropertyChanged(nameof(SourcesHeader));
+        OnPropertyChanged(nameof(StatsLine));
+        OnPropertyChanged(nameof(HasStats));
     }
 }

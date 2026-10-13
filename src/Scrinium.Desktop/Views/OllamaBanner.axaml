@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             x:Class="Scrinium.Desktop.Views.OllamaBanner"
+             x:DataType="vm:OllamaBannerViewModel">
+  <Border Background="{DynamicResource AccentSoft}" Padding="16,12">
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+      <TextBlock Text="{Binding Message}" Foreground="{DynamicResource HighlightInk}"
+                 VerticalAlignment="Center" TextWrapping="Wrap" />
+      <Button Grid.Column="1" Classes="primary" Content="Start Ollama"
+              IsVisible="{Binding CanStart}" Command="{Binding StartOllamaCommand}" />
+      <Button Grid.Column="2" Classes="primary" Content="Download models"
+              IsVisible="{Binding CanPull}" Command="{Binding PullMissingCommand}" />
+      <Button Grid.Column="3" Classes="ghost" Content="Check again" Command="{Binding RecheckCommand}" />
+    </Grid>
+  </Border>
+</UserControl>

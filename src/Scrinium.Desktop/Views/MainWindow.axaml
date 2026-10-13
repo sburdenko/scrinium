@@ -5,39 +5,70 @@
         x:Class="Scrinium.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Scrinium"
+        Icon="avares://Scrinium.Desktop/Assets/Icon/scrinium.png"
         Width="1320" Height="820" MinWidth="980" MinHeight="560"
         WindowStartupLocation="CenterScreen">
-  <Grid RowDefinitions="Auto,Auto,*">
-    <Border Grid.Row="0" Padding="16,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="*,Auto,Auto">
+  <Grid x:Name="Frame" RowDefinitions="Auto,Auto,*">
+    <Border Grid.Row="0" Height="54" Padding="16,0,16,0"
+            BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,2">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource Accent}">
-            <TextBlock Text="S" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          </Border>
-          <TextBlock Text="Scrinium" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
+          <Viewbox Width="22" Height="22">
+            <Canvas Width="100" Height="100">
+              <Rectangle Width="100" Height="100" RadiusX="22.5" RadiusY="22.5" Fill="#16233B" />
+              <Path Data="M32 26 H22 V74 H32" Stroke="#ECE6CC" StrokeThickness="10" />
+              <Path Data="M68 26 H78 V74 H68" Stroke="#ECE6CC" StrokeThickness="10" />
+              <Path Data="M44 38 L54 32 V68" Stroke="#FFD60A" StrokeThickness="13" />
+            </Canvas>
+          </Viewbox>
+          <TextBlock Text="Scrinium" FontSize="17" FontWeight="ExtraBold" LetterSpacing="-0.17" VerticalAlignment="Center" />
         </StackPanel>
-        <Button Grid.Column="1" Classes="ghost" Content="New chat" Command="{Binding Chat.NewChatCommand}" />
-        <Button Grid.Column="2" Classes="ghost" Content="Settings" Command="{Binding ToggleSettingsCommand}" />
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" Margin="24,0,0,0" VerticalAlignment="Stretch">
+          <Button Classes="tab" Classes.active="{Binding IsAsk}" Content="Ask" Command="{Binding ShowAskCommand}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="tab" Classes.active="{Binding IsArchive}" Content="Archive" Command="{Binding ShowArchiveCommand}" />
+            <Border Classes="badge" IsVisible="{Binding FailureBadge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock Text="{Binding FailureBadge}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource DangerInk}" />
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <Button Grid.Column="3" Classes="ghost" Content="New chat" Command="{Binding NewChatCommand}" VerticalAlignment="Center" />
+        <Button Grid.Column="4" Classes="ghost" Content="Settings" Command="{Binding ToggleSettingsCommand}" VerticalAlignment="Center" />
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" IsVisible="{Binding Banner.IsVisible}" Padding="16,10"
-            Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-        <Ellipse Classes="dot stale" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Text="{Binding Banner.Message}" VerticalAlignment="Center" TextWrapping="Wrap" />
-        <Button Grid.Column="2" Classes="primary" Content="Start Ollama"
-                IsVisible="{Binding Banner.CanStart}" Command="{Binding Banner.StartOllamaCommand}" />
-        <Button Grid.Column="3" Classes="primary" Content="Download models"
-                IsVisible="{Binding Banner.CanPull}" Command="{Binding Banner.PullMissingCommand}" />
-        <Button Grid.Column="4" Classes="ghost" Content="Check again" Command="{Binding Banner.RecheckCommand}" />
-      </Grid>
-    </Border>
+    <views:OllamaBanner Grid.Row="1" DataContext="{Binding Banner}">
+      <views:OllamaBanner.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).IsAsk" />
+          <Binding Path="IsVisible" />
+        </MultiBinding>
+      </views:OllamaBanner.IsVisible>
+    </views:OllamaBanner>
 
-    <Grid Grid.Row="2" ColumnDefinitions="310,*,Auto">
-      <views:SourcesView Grid.Column="0" DataContext="{Binding Sources}" />
-      <views:ChatView Grid.Column="1" DataContext="{Binding Chat}" />
-      <views:RightPanelView Grid.Column="2" Width="460" DataContext="{Binding Panel}" IsVisible="{Binding IsOpen}" />
+    <Grid Grid.Row="2" IsVisible="{Binding IsArchive}" RowDefinitions="Auto,*,Auto">
+      <views:OllamaBanner Margin="40,20,40,0" DataContext="{Binding Banner}" IsVisible="{Binding IsVisible}" />
+      <views:ArchiveView Grid.Row="1" DataContext="{Binding Sources}" />
+      <Grid Grid.Row="2" Margin="40,0,40,24">
+        <Rectangle Stroke="{DynamicResource Line}" StrokeThickness="2" StrokeDashArray="4,4" />
+        <Grid ColumnDefinitions="*,Auto" Margin="20">
+          <TextBlock Classes="muted" VerticalAlignment="Center" Text="Drop .txt, .md or .pdf anywhere in this window." />
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ShowAskCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Ask about these documents" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" />
+              <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconArrowRight}" Stroke="{DynamicResource Accent}" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <Grid Grid.Row="2" IsVisible="{Binding IsAsk}" ColumnDefinitions="*,300,Auto">
+      <views:ChatView Grid.Column="0" DataContext="{Binding Chat}" />
+      <views:NotesView Grid.Column="1" DataContext="{Binding Chat}" />
+      <views:RightPanelView Grid.Column="2" DataContext="{Binding}" />
     </Grid>
   </Grid>
 </Window>

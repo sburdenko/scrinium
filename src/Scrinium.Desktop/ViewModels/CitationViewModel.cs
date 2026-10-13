@@ -20,6 +20,14 @@ public sealed partial class CitationViewModel(Citation citation) : ObservableObj
 
     public SourceLocation Location { get; } = citation.Location;
 
+    public string Meta => $"{Subtitle} · {(IsCited ? "cited" : "retrieved, not cited")}";
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Meta), nameof(IsUncited))]
     private bool _isCited;
+
+    public bool IsUncited => !IsCited;
+
+    [ObservableProperty]
+    private bool _isActive;
 }
