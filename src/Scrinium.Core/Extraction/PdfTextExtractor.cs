@@ -22,5 +22,3 @@ public sealed class PdfTextExtractor : ITextExtractor
         return segments;
     }
 }
-
-public sealed class TextExtractionException(string message) : Exception(message);

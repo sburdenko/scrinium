@@ -6,18 +6,12 @@ using Scrinium.Core.Storage;
 
 namespace Scrinium.Core.Retrieval;
 
-public sealed record RetrievalOptions(
-    int TopK = 6,
-    int ContextTokenBudget = 3000,
-    int PreviewLength = 220,
-    double MinScore = 0.35,
-    double ScoreMargin = 0.10);
-
 public sealed class Retriever(
     IVectorStore vectors,
     IDocumentStore documents,
     IEmbeddingGenerator<string, Embedding<float>> embedder,
     ISettingsProvider settings,
+    PassageLocator passageLocator,
     RetrievalOptions options)
 {
     public async Task<RetrievalOutcome> RetrieveAsync(string query, CancellationToken ct = default)
@@ -46,7 +40,7 @@ public sealed class Retriever(
         float[] queryVector,
         CancellationToken ct)
     {
-        var passages = await LocatePassagesAsync(hits, queryVector, ct);
+        var passages = await passageLocator.LocateAsync(hits, queryVector, ct);
         var topChunkIds = hits.Select(h => h.Chunk.Id).ToHashSet();
         var fragments = new List<ContextFragment>();
         var budget = 0.0;
@@ -74,49 +68,6 @@ public sealed class Retriever(
             .Where(c => c.Id == chunk.Id || !topChunkIds.Contains(c.Id))
             .Select(c => c.Text);
         return string.Join("\n", parts);
-    }
-
-    private async Task<Dictionary<Guid, PassageSpan>> LocatePassagesAsync(
-        IReadOnlyList<ChunkHit> hits,
-        float[] queryVector,
-        CancellationToken ct)
-    {
-        var passages = hits.ToDictionary(h => h.Chunk.Id, h => new PassageSpan(0, h.Chunk.Text.Length));
-        var candidates = hits
-            .Select(h => (Hit: h, Spans: SentenceSplitter.Split(h.Chunk.Text)))
-            .Where(c => c.Spans.Count > 1)
-            .ToList();
-
-        if (candidates.Count == 0)
-            return passages;
-
-        var texts = candidates
-            .SelectMany(c => c.Spans.Select(span => c.Hit.Chunk.Text.Substring(span.Start, span.Length)))
-            .ToList();
-
-        GeneratedEmbeddings<Embedding<float>> embeddings;
-        try
-        {
-            var model = settings.Current.EmbeddingModel;
-            embeddings = await embedder.GenerateAsync(texts, new EmbeddingGenerationOptions { ModelId = model }, ct);
-        }
-        catch (HttpRequestException)
-        {
-            // Highlighting is a nicety: when the model server drops out here, cite the whole chunk.
-            return passages;
-        }
-
-        var query = VectorMath.Normalize(queryVector);
-        var next = 0;
-        foreach (var (hit, spans) in candidates)
-        {
-            var scored = spans
-                .Select(span => (Span: span, Score: VectorMath.Dot(query, VectorMath.Normalize(embeddings[next++].Vector.Span))))
-                .ToList();
-            passages[hit.Chunk.Id] = scored.MaxBy(s => s.Score).Span;
-        }
-
-        return passages;
     }
 
     private Citation ToCitation(int number, ChunkHit hit, PassageSpan passage)

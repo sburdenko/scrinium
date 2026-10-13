@@ -8,6 +8,7 @@ using OllamaSharp;
 using Scrinium.Core;
 using Scrinium.Core.Ingestion;
 using Scrinium.Core.Settings;
+using Scrinium.Desktop.Hosting;
 using Scrinium.Desktop.Ollama;
 using Scrinium.Desktop.Services;
 using Scrinium.Desktop.ViewModels;
@@ -69,10 +70,4 @@ public sealed class App : Application
 
         return builder.Build();
     }
-}
-
-public sealed class IngestionWorkerService(DocumentLibrary library) : BackgroundService
-{
-    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
-        library.RunWorkerAsync(stoppingToken);
 }

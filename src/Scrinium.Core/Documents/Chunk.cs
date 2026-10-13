@@ -9,7 +9,3 @@ public sealed record Chunk(
     string Text,
     DateOnly Date,
     int TokenCount);
-
-public sealed record EmbeddedChunk(Chunk Chunk, float[] Vector);
-
-public sealed record ChunkHit(Chunk Chunk, string DocumentTitle, double Score);

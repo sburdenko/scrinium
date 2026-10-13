@@ -5,16 +5,6 @@ using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public enum MessagePhase
-{
-    Searching,
-    Composing,
-    Writing,
-    Done,
-    Stopped,
-    Failed
-}
-
 public sealed partial class ChatMessageViewModel : ObservableObject
 {
     private ChatMessageViewModel(bool isUser, string text, MessagePhase phase)

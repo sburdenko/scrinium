@@ -1,7 +1,5 @@
 namespace Scrinium.Core.Retrieval;
 
-public readonly record struct PassageSpan(int Start, int Length);
-
 public static class SentenceSplitter
 {
     private const int MinLength = 20;
