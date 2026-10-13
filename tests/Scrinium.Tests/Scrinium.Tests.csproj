@@ -3,6 +3,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
@@ -13,5 +14,6 @@
     <ProjectReference Include="..\..\src\Scrinium.Extraction\Scrinium.Extraction.csproj" />
     <ProjectReference Include="..\..\src\Scrinium.Ollama\Scrinium.Ollama.csproj" />
     <ProjectReference Include="..\..\src\Scrinium.Desktop\Scrinium.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Server\Scrinium.Server.csproj" />
   </ItemGroup>
 </Project>
