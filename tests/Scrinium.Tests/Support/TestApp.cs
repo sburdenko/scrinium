@@ -1,3 +1,5 @@
+using Scrinium.Storage;
+using Scrinium.Extraction;
 using Microsoft.Extensions.AI;
 using Scrinium.Core.Chat;
 using Scrinium.Core.Chunking;

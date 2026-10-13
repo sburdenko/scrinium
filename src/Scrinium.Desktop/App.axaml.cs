@@ -13,6 +13,8 @@ using Scrinium.Desktop.Ollama;
 using Scrinium.Desktop.Services;
 using Scrinium.Desktop.ViewModels;
 using Scrinium.Desktop.Views;
+using Scrinium.Extraction;
+using Scrinium.Storage;
 
 namespace Scrinium.Desktop;
 
@@ -46,6 +48,8 @@ public sealed class App : Application
 
         var builder = Host.CreateApplicationBuilder();
         builder.Services.AddScriniumCore(dataDirectory, settingsPath);
+        builder.Services.AddScriniumSqliteStorage();
+        builder.Services.AddScriniumTextExtractors();
 
         builder.Services.AddSingleton(sp =>
         {

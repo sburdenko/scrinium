@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace Scrinium.Core.Storage;
+namespace Scrinium.Storage;
 
 internal static class SqliteSchema
 {

@@ -1,3 +1,4 @@
+using Scrinium.Storage;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Storage;
 using Scrinium.Tests.Support;
