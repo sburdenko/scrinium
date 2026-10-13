@@ -7,7 +7,8 @@ public sealed record EvalOptions(
     string? ChatModel,
     string? EmbeddingModel,
     string? OllamaUrl,
-    double? MinPass)
+    double? MinPass,
+    IReadOnlyList<string>? Only = null)
 {
     public const string Usage = """
         Usage: Scrinium.Eval --documents <folder> --cases <file.json> [options]
@@ -17,6 +18,7 @@ public sealed record EvalOptions(
           --embedding-model <name>   override the embedding model
           --ollama-url <url>         override the Ollama address
           --min-pass <0..1>          exit with code 1 when fewer cases pass
+          --only <id,id,...>         run only the listed case ids
         """;
 
     public static EvalOptions Parse(string[] args)
@@ -44,6 +46,9 @@ public sealed record EvalOptions(
             values.GetValueOrDefault("--chat-model"),
             values.GetValueOrDefault("--embedding-model"),
             values.GetValueOrDefault("--ollama-url"),
-            minPass);
+            minPass,
+            values.TryGetValue("--only", out var only)
+                ? only.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                : null);
     }
 }

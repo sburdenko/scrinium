@@ -28,6 +28,8 @@ public static class ReportWriter
         report.AppendLine($"| Cases passed | {Ratio(summary.Passed, summary.Total)} |");
         report.AppendLine($"| Expected facts present | {Ratio(summary.FactsCorrect, summary.Answerable)} |");
         report.AppendLine($"| Right document cited | {Ratio(summary.SourcesCorrect, summary.SourcesChecked)} |");
+        if (summary.PassagesChecked > 0)
+            report.AppendLine($"| Highlighted sentence holds the fact | {Ratio(summary.PassagesCorrect, summary.PassagesChecked)} |");
         report.AppendLine($"| Refused when the documents do not say | {Ratio(summary.RefusalsCorrect, summary.Refusals)} |");
         report.AppendLine($"| Answered in the language of the question | {Ratio(summary.LanguageCorrect, summary.LanguageChecked)} |");
         report.AppendLine($"| Median time per answer | {summary.MedianTime.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s |");
@@ -53,7 +55,10 @@ public static class ReportWriter
                 report.AppendLine($"### {result.Case.Id}").AppendLine();
                 report.AppendLine($"Question: {result.Case.Question}").AppendLine();
                 report.AppendLine($"Answer: {Shorten(result.Observation.Text)}").AppendLine();
-                report.AppendLine($"Retrieved: {string.Join(", ", result.Observation.RetrievedTitles)}").AppendLine();
+                report.AppendLine("Retrieved:").AppendLine();
+                foreach (var line in result.Observation.RetrievedLines ?? result.Observation.RetrievedTitles)
+                    report.AppendLine($"- {line}");
+                report.AppendLine();
             }
         }
 

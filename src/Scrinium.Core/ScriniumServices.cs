@@ -30,7 +30,9 @@ public static class ScriniumServices
         services.AddSingleton<DocumentLibrary>();
         services.AddHostedService<IngestionWorkerService>();
         services.AddSingleton<PassageLocator>();
+        services.AddSingleton<PassageRefiner>();
         services.AddSingleton<Retriever>();
+        services.AddSingleton<QueryRewriter>();
         services.AddSingleton<AnswerService>();
         services.AddSingleton<DocumentPreviewService>();
 

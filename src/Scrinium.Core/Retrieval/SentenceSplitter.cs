@@ -20,7 +20,7 @@ public static class SentenceSplitter
         }
 
         AddTrimmed(raw, text, start, text.Length);
-        return MergeShort(raw);
+        return MergeShort(text, raw);
     }
 
     private static bool EndsSentence(string text, int start, int index)
@@ -33,8 +33,18 @@ public static class SentenceSplitter
         return terminal && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]));
     }
 
+    private static bool IsTableSeparator(string text, int start, int end)
+    {
+        var line = text.AsSpan(start, end - start);
+        return line[0] == '|' && line.Contains('-') && line.IndexOfAnyExcept("|-: ") < 0;
+    }
+
     private static bool LineBreakEndsPassage(string text, int start, int index)
     {
+        var lineStart = index == 0 ? 0 : text.LastIndexOf('\n', index - 1) + 1;
+        if (text.AsSpan(lineStart, index - lineStart).TrimStart().StartsWith("|"))
+            return true;
+
         var last = index - 1;
         while (last >= start && char.IsWhiteSpace(text[last]))
             last--;
@@ -46,7 +56,7 @@ public static class SentenceSplitter
         while (next < text.Length && char.IsWhiteSpace(text[next]))
             next++;
 
-        return StartsListItem(text, next) || index - start >= MaxRunWithoutBreak;
+        return StartsListItem(text, next) || (next < text.Length && text[next] == '|') || index - start >= MaxRunWithoutBreak;
     }
 
     private static bool StartsListItem(string text, int index)
@@ -72,17 +82,27 @@ public static class SentenceSplitter
         while (end > start && char.IsWhiteSpace(text[end - 1]))
             end--;
 
-        if (end > start)
+        if (end > start && !IsTableSeparator(text, start, end))
             spans.Add(new PassageSpan(start, end - start));
     }
 
-    private static IReadOnlyList<PassageSpan> MergeShort(List<PassageSpan> spans)
+    private static IReadOnlyList<PassageSpan> MergeShort(string text, List<PassageSpan> spans)
     {
         var merged = new List<PassageSpan>();
         var carry = (PassageSpan?)null;
 
         foreach (var span in spans)
         {
+            if (text[span.Start] == '|')
+            {
+                if (carry is { } held)
+                    merged.Add(held);
+
+                carry = null;
+                merged.Add(span);
+                continue;
+            }
+
             var current = carry is { } pending
                 ? new PassageSpan(pending.Start, span.Start + span.Length - pending.Start)
                 : span;

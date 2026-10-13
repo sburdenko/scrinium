@@ -46,6 +46,24 @@ public sealed class ServerTests
     }
 
     [Fact]
+    public async Task The_sources_are_sent_again_after_the_answer_with_the_supporting_sentence()
+    {
+        await using var server = await ServerHarness.StartAsync(
+            answerTokens: ["The tyres are changed ", "every November [1]."],
+            seedDocuments: Seed("car.txt", "The engine noise got louder in September. The tyres are changed every November."));
+        await server.WaitUntilReadyAsync(1);
+
+        var events = await server.ChatAsync("engine noise louder");
+
+        var sources = events.Where(e => e.Type == "sources").ToList();
+        Assert.Equal(2, sources.Count);
+        Assert.Equal("The engine noise got louder in September.", sources[0].Json[0].GetProperty("preview").GetString());
+        Assert.Equal("The tyres are changed every November.", sources[1].Json[0].GetProperty("preview").GetString());
+        var all = events.ToList();
+        Assert.True(all.IndexOf(sources[1]) > all.FindLastIndex(e => e.Type == "delta"));
+    }
+
+    [Fact]
     public async Task Chat_with_an_empty_archive_explains_without_calling_the_model()
     {
         await using var server = await ServerHarness.StartAsync();

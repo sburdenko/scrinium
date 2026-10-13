@@ -66,6 +66,9 @@ public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel
                     case AnswerEvent.TextDelta delta:
                         reply.Append(delta.Text);
                         break;
+                    case AnswerEvent.SourcesRefined refined:
+                        reply.RefineSources(refined.Citations);
+                        break;
                 }
 
                 ScrollRequested?.Invoke();

@@ -29,16 +29,38 @@ public static class CaseLoader
             ? list.EnumerateArray().Select(item => item.GetString()!).ToList()
             : [];
         var cites = Text(element, "cites");
+        var forbids = element.TryGetProperty("forbids", out var forbidden)
+            ? forbidden.EnumerateArray().Select(item => item.GetString()!).ToList()
+            : (List<string>)[];
 
         Expectation expectation = Text(element, "expect") switch
         {
             "refusal" => new Expectation.Refuses(),
-            "answer" when contains.Count > 0 || cites is not null => new Expectation.Answers(contains, cites),
+            "answer" when contains.Count > 0 || cites is not null => new Expectation.Answers(contains, cites, forbids),
             "answer" => throw new InvalidDataException($"The case '{id}' expects an answer but names no fact and no source."),
             var other => throw new InvalidDataException($"The case '{id}' has an unknown expectation '{other}'.")
         };
 
-        return new EvaluationCase(id, question, Text(element, "language"), expectation);
+        return new EvaluationCase(id, question, Text(element, "language"), expectation) { History = History(id, element) };
+    }
+
+    private static IReadOnlyList<HistoryTurn> History(string id, JsonElement element)
+    {
+        if (!element.TryGetProperty("history", out var items))
+            return [];
+
+        var turns = new List<HistoryTurn>();
+        foreach (var item in items.EnumerateArray())
+        {
+            var role = Text(item, "role");
+            var text = Text(item, "text");
+            if (role is not ("user" or "assistant") || string.IsNullOrWhiteSpace(text))
+                throw new InvalidDataException($"The case '{id}' has a history turn with role '{role}' or no text.");
+
+            turns.Add(new HistoryTurn(role, text));
+        }
+
+        return turns;
     }
 
     private static string? Text(JsonElement element, string name) =>

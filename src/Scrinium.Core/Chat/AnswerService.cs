@@ -8,6 +8,8 @@ namespace Scrinium.Core.Chat;
 
 public sealed class AnswerService(
     Retriever retriever,
+    QueryRewriter rewriter,
+    PassageRefiner refiner,
     IChatClient chat,
     ISettingsProvider settings)
 {
@@ -18,7 +20,8 @@ public sealed class AnswerService(
         IReadOnlyList<ChatTurn> history,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var outcome = await retriever.RetrieveAsync(question, ct);
+        var searchQuery = await rewriter.RewriteAsync(question, history, ct);
+        var outcome = await retriever.RetrieveAsync(searchQuery, ct);
 
         if (outcome is not RetrievalOutcome.Found found)
         {
@@ -33,6 +36,7 @@ public sealed class AnswerService(
         var options = new ChatOptions { ModelId = settings.Current.ChatModel, Temperature = Temperature };
 
         var pending = new StringBuilder();
+        var answer = new StringBuilder();
         var decided = false;
         var declined = false;
         var declinedText = false;
@@ -50,6 +54,7 @@ public sealed class AnswerService(
                     continue;
 
                 declinedText |= declined;
+                answer.Append(delta);
                 yield return new AnswerEvent.TextDelta(delta);
                 continue;
             }
@@ -76,13 +81,27 @@ public sealed class AnswerService(
                 continue;
 
             decided = true;
+            answer.Append(pending);
             yield return new AnswerEvent.TextDelta(pending.ToString());
         }
 
         if (!decided && pending.Length > 0)
+        {
+            answer.Append(pending);
             yield return new AnswerEvent.TextDelta(pending.ToString());
+        }
         else if (declined && !declinedText)
+        {
             yield return new AnswerEvent.TextDelta(PromptBuilder.DeclinedMessage);
+        }
+
+        if (declined)
+            yield break;
+
+        var refined = await refiner.RefineAsync(found.Fragments, answer.ToString(), ct);
+        var changed = refined.Zip(found.Fragments, (after, fragment) => after.Location != fragment.Citation.Location).Any(x => x);
+        if (changed)
+            yield return new AnswerEvent.SourcesRefined(refined);
     }
 
     private static string Explain(RetrievalOutcome outcome) => outcome switch

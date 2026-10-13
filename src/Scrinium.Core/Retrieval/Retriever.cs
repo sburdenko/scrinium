@@ -53,7 +53,11 @@ public sealed class Retriever(
                 break;
 
             budget += weight;
-            fragments.Add(new ContextFragment(ToCitation(fragments.Count + 1, hit, passages[hit.Chunk.Id]), text));
+            fragments.Add(new ContextFragment(
+                ToCitation(fragments.Count + 1, hit, passages[hit.Chunk.Id]),
+                text,
+                hit.Chunk.Text,
+                hit.Chunk.Offset));
         }
 
         return fragments;
@@ -67,7 +71,7 @@ public sealed class Retriever(
         var parts = range
             .Where(c => c.Id == chunk.Id || !topChunkIds.Contains(c.Id))
             .Select(c => c.Text);
-        return string.Join("\n", parts);
+        return MarkdownTables.Flatten(string.Join("\n", parts));
     }
 
     private Citation ToCitation(int number, ChunkHit hit, PassageSpan passage)

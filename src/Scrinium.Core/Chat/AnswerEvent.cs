@@ -9,4 +9,6 @@ public abstract record AnswerEvent
     public sealed record SourcesFound(IReadOnlyList<Citation> Citations) : AnswerEvent;
 
     public sealed record TextDelta(string Text) : AnswerEvent;
+
+    public sealed record SourcesRefined(IReadOnlyList<Citation> Citations) : AnswerEvent;
 }
