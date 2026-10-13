@@ -19,7 +19,7 @@ Everything runs on your machine through [Ollama](https://ollama.com). Your docum
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
-- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; the committed reports for a German demo company show 35 of 35 cases passing.
+- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; two fictional demo companies with 85 questions ship with committed reports, including the failures.
 - **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
 - **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
 
@@ -114,7 +114,10 @@ The page is served with a content security policy and renders answers as plain t
 
 ## Quality evaluation
 
-`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships a fictional German tax office, [`demo/steuerberatung-mueller`](demo/steuerberatung-mueller), with six documents (five Markdown files and a PDF) and 35 questions in German, English and Russian.
+`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships two fictional companies:
+
+- [`demo/steuerberatung-mueller`](demo/steuerberatung-mueller), a German tax office: six documents (five Markdown files and a PDF) and 35 questions in German, English and Russian.
+- [`demo/kestrel-analytics`](demo/kestrel-analytics), an English-language analytics vendor written to break the first set: contradicting and superseded documents, tables, a prompt injection inside a document, German questions about English documents, and 14 follow-up questions that only make sense with the chat history.
 
 ```bash
 dotnet run --project tools/Scrinium.Eval -c Release -- \
@@ -131,16 +134,30 @@ Every question states what a correct answer must contain, which document it must
 | facts | every expected word or number appears in the answer |
 | source | the expected document is among the cited ones |
 | refusal | a question the documents cannot answer cites nothing |
+| passage | the sentence the app highlights contains the expected fact |
+| forbidden | the answer does not contain a value the documents mark as outdated or injected |
 | language | the answer is in the language of the question (skipped for very short answers) |
 
-Results on the demo set, `bge-m3` for embeddings:
+Results, `bge-m3` for embeddings:
 
-| Chat model | Cases passed | Median answer time |
-|---|---|---|
-| `gemma3:12b` | 35 / 35 | 6.9 s |
-| `qwen3-coder:30b` | 35 / 35 | 2.4 s |
+| Set | Chat model | Cases passed | Right sentence highlighted | Refused when it should | Median answer time |
+|---|---|---|---|---|---|
+| Steuerberatung Müller (35) | `gemma3:12b` | 28 / 35 | 25 / 30 | 3 / 5 | 7.3 s |
+| Steuerberatung Müller (35) | `qwen3-coder:30b` | 29 / 35 | 24 / 30 | 5 / 5 | 2.8 s |
+| Kestrel Analytics (50) | `gemma3:12b` | 39 / 50 | 36 / 44 | 3 / 6 | 15.0 s |
+| Kestrel Analytics (50) | `qwen3-coder:30b` | 42 / 50 | 37 / 44 | 5 / 6 | 5.3 s |
 
-The reports in [`demo/steuerberatung-mueller/reports`](demo/steuerberatung-mueller/reports) list every case and, for failures, the answer that was given. Two things the first runs exposed are now handled by the prompt and the answering step: the model replied in English to German questions, and it cited sources while declining. A decline now starts with a marker the app removes, so a refusal carries no sources and keeps the language of the question.
+The first company passed 35 of 35 until the passage and forbidden-value checks were added; those checks are why the numbers dropped, not a regression. On the harder set, the first run of `gemma3:12b` passed 29 of 50 ([report](demo/kestrel-analytics/reports/2026-10-13-gemma3-12b-first-run.md)). It exposed five defects that are now fixed:
+
+- a prompt injection inside a document was obeyed;
+- an English question was answered in French;
+- follow-up questions lost their context, because retrieval only saw the last message;
+- "the documents do not include X" was treated as a refusal, although the answer was useful;
+- the highlighted sentence was the wrong one in 45 % of answers, because it was picked by word overlap; it is now refined against the claims of the answer.
+
+What still fails is listed in the reports. Of the 32 failing runs, 26 are the highlighted sentence missing the fact (two of them also lack a fact in the answer), and 6 are a question the documents cannot answer that the model answered anyway. No run repeated a value the documents mark as outdated.
+
+The reports in [`demo/steuerberatung-mueller/reports`](demo/steuerberatung-mueller/reports) and [`demo/kestrel-analytics/reports`](demo/kestrel-analytics/reports) list every case and, for failures, the answer that was given and the fragments that were retrieved. A decline starts with a marker the app removes, so a refusal carries no sources and keeps the language of the question.
 
 CI checks that the question set is valid and that every cited document exists; the model run itself is local.
 
@@ -299,6 +316,7 @@ tools/
   Scrinium.Eval/         question-set runner, scoring and reports
 demo/
   steuerberatung-mueller/  fictional German tax office: documents, questions, reports
+  kestrel-analytics/       fictional analytics vendor, a harder set: conflicts, tables, injection, follow-ups
 tests/
   Scrinium.Tests/        unit, architecture, composition and server tests
 docs/
