@@ -1,11 +1,12 @@
 # Third-party notices
 
-Scrinium is licensed under the MIT license (see `LICENSE`). It uses the following components under their own licenses. All of them are NuGet packages that are restored at build time.
+Scrinium is licensed under the MIT license (see `LICENSE`). It uses the following components under their own licenses. All of them except Lucide are NuGet packages that are restored at build time.
 
 | Component | Used for | License |
 |---|---|---|
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | desktop UI | MIT |
 | [Inter](https://github.com/rsms/inter), via `Avalonia.Fonts.Inter` | interface font | SIL Open Font License 1.1 |
+| [Lucide](https://lucide.dev) | the icon shapes, copied as path data into `Styles/Icons.axaml` | ISC |
 | [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) | MVVM helpers | MIT |
 | [OllamaSharp](https://github.com/awaescher/OllamaSharp) | talking to an Ollama server | MIT |
 | [PdfPig](https://github.com/UglyToad/PdfPig) | reading text from PDF files | Apache License 2.0 |

@@ -22,7 +22,7 @@ Each part is a separate project in `src/`. A part may use only the parts listed 
 | **Storage** | Keeps documents, passages and their number lists in one SQLite file and searches them. The only part that knows how that file is laid out. | Core | SQLite |
 | **Extraction** | Gets plain text out of files: `.txt`, `.md` and `.pdf`. The only part that understands the PDF format. | Core | PdfPig |
 | **Ollama** | Connects Core to an Ollama server: the two model interfaces, a check of what is installed, and downloading models. The only part that knows about Ollama. | Core | OllamaSharp |
-| **Desktop** | The window: sources list, chat, original preview, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
+| **Desktop** | The window: an Ask view with the chat, the notes and the original preview, an Archive view with the document list, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
 | **Server** | A small web application: a chat endpoint that streams the answer, a source preview, a document list behind a key, a health check and the chat page. Limits how often and how many at once a visitor can ask. | Core, Storage, Extraction, Ollama | ASP.NET Core |
 
 `tests/Scrinium.Tests` checks Core with fake models, and runs the Server on a test server, so the whole test run needs no model server.
@@ -46,7 +46,7 @@ A bot can sound right and be wrong, so the answers are measured. The evaluation 
 1. The question becomes numbers; the closest passages are found.
 2. Inside each passage the sentence closest to the question is picked. That sentence, not the whole passage, is what gets highlighted in the original.
 3. The model gets the whole passages, numbered 1 to N, and must cite those numbers.
-4. The window turns each `[n]` into a button. A click opens the original, scrolled to the highlighted sentence.
+4. The window turns each `[n]` into a clickable number. A click opens the original, scrolled to the highlighted sentence.
 
 ## Words you will meet
 
