@@ -87,4 +87,46 @@ public sealed class RetrieverTests : IDisposable
         Assert.Equal([1, 2], found.Fragments.Select(f => f.Citation.Number));
         Assert.Equal("strong.txt", found.Fragments[0].Citation.DocumentTitle);
     }
+
+    [Fact]
+    public async Task A_loosely_related_question_still_reaches_the_model()
+    {
+        var app = NewApp();
+        await app.ImportAndProcessAsync(app.WriteFile("notes.txt", "alpha beta gamma delta epsilon zeta"));
+
+        var outcome = await app.Retriever.RetrieveAsync("alpha beta xx");
+
+        var found = Assert.IsType<RetrievalOutcome.Found>(outcome);
+        Assert.Equal("notes.txt", Assert.Single(found.Fragments).Citation.DocumentTitle);
+    }
+
+    [Fact]
+    public async Task Citation_points_to_the_sentence_that_best_matches_the_question()
+    {
+        var app = NewApp();
+        const string text = "The invoice total was paid in September. The bearing makes a grinding noise on cold starts. The tyres are changed every November.";
+        await app.ImportAndProcessAsync(app.WriteFile("car.txt", text));
+
+        var found = Assert.IsType<RetrievalOutcome.Found>(
+            await app.Retriever.RetrieveAsync("bearing grinding noise cold starts"));
+
+        var citation = Assert.Single(found.Fragments).Citation;
+        const string expected = "The bearing makes a grinding noise on cold starts.";
+        Assert.Equal(text.IndexOf(expected, StringComparison.Ordinal), citation.Location.Offset);
+        Assert.Equal(expected.Length, citation.Location.Length);
+        Assert.Equal(expected, citation.Preview);
+    }
+
+    [Fact]
+    public async Task The_prompt_still_gets_the_whole_chunk()
+    {
+        var app = NewApp();
+        const string text = "The invoice total was paid in September. The bearing makes a grinding noise on cold starts. The tyres are changed every November.";
+        await app.ImportAndProcessAsync(app.WriteFile("car.txt", text));
+
+        var found = Assert.IsType<RetrievalOutcome.Found>(
+            await app.Retriever.RetrieveAsync("bearing grinding noise cold starts"));
+
+        Assert.Equal(text, Assert.Single(found.Fragments).PromptText);
+    }
 }
