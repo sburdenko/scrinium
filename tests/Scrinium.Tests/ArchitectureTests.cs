@@ -9,6 +9,7 @@ public sealed class ArchitectureTests
     private static readonly Assembly Extraction = typeof(Scrinium.Extraction.PdfTextExtractor).Assembly;
     private static readonly Assembly Ollama = typeof(Scrinium.Ollama.OllamaMonitor).Assembly;
     private static readonly Assembly Desktop = typeof(Scrinium.Desktop.App).Assembly;
+    private static readonly Assembly Server = typeof(Scrinium.Server.ServerApp).Assembly;
 
     [Fact]
     public void Core_depends_on_no_other_Scrinium_assembly() =>
@@ -23,8 +24,12 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void Desktop_composes_Core_Storage_Extraction_and_Ollama() =>
-        AssertScriniumReferences(Desktop, "Scrinium.Core", "Scrinium.Storage", "Scrinium.Extraction", "Scrinium.Ollama");
+    public void Desktop_and_Server_compose_Core_Storage_Extraction_and_Ollama()
+    {
+        string[] parts = ["Scrinium.Core", "Scrinium.Storage", "Scrinium.Extraction", "Scrinium.Ollama"];
+        AssertScriniumReferences(Desktop, parts);
+        AssertScriniumReferences(Server, parts);
+    }
 
     [Fact]
     public void Only_Storage_references_Sqlite() =>
@@ -37,6 +42,10 @@ public sealed class ArchitectureTests
     [Fact]
     public void Only_Desktop_references_Avalonia() =>
         AssertOnlyReferencedBy("Avalonia", Desktop);
+
+    [Fact]
+    public void Only_Server_references_AspNetCore() =>
+        AssertOnlyReferencedBy("Microsoft.AspNetCore", Server);
 
     [Fact]
     public void Only_Ollama_references_OllamaSharp() =>
@@ -71,7 +80,7 @@ public sealed class ArchitectureTests
 
     private static void AssertOnlyReferencedBy(string prefix, Assembly owner)
     {
-        foreach (var assembly in new[] { Core, Storage, Extraction, Ollama, Desktop })
+        foreach (var assembly in new[] { Core, Storage, Extraction, Ollama, Desktop, Server })
         {
             var references = assembly.GetReferencedAssemblies()
                 .Any(name => name.Name!.StartsWith(prefix, StringComparison.Ordinal));
