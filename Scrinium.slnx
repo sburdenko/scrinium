@@ -4,6 +4,7 @@
     <Project Path="src/Scrinium.Desktop/Scrinium.Desktop.csproj" />
     <Project Path="src/Scrinium.Extraction/Scrinium.Extraction.csproj" />
     <Project Path="src/Scrinium.Ollama/Scrinium.Ollama.csproj" />
+    <Project Path="src/Scrinium.Server/Scrinium.Server.csproj" />
     <Project Path="src/Scrinium.Storage/Scrinium.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Scrinium.Core\Scrinium.Core.csproj" />
+    <ProjectReference Include="..\Scrinium.Storage\Scrinium.Storage.csproj" />
+    <ProjectReference Include="..\Scrinium.Extraction\Scrinium.Extraction.csproj" />
+    <ProjectReference Include="..\Scrinium.Ollama\Scrinium.Ollama.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
