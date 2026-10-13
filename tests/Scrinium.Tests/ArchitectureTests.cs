@@ -10,6 +10,7 @@ public sealed class ArchitectureTests
     private static readonly Assembly Ollama = typeof(Scrinium.Ollama.OllamaMonitor).Assembly;
     private static readonly Assembly Desktop = typeof(Scrinium.Desktop.App).Assembly;
     private static readonly Assembly Server = typeof(Scrinium.Server.ServerApp).Assembly;
+    private static readonly Assembly Eval = typeof(Scrinium.Eval.EvaluationRunner).Assembly;
 
     [Fact]
     public void Core_depends_on_no_other_Scrinium_assembly() =>
@@ -29,6 +30,7 @@ public sealed class ArchitectureTests
         string[] parts = ["Scrinium.Core", "Scrinium.Storage", "Scrinium.Extraction", "Scrinium.Ollama"];
         AssertScriniumReferences(Desktop, parts);
         AssertScriniumReferences(Server, parts);
+        AssertScriniumReferences(Eval, parts);
     }
 
     [Fact]
