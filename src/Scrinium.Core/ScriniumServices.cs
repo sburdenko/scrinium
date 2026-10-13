@@ -23,17 +23,12 @@ public static class ScriniumServices
         services.AddSingleton<ISettingsProvider>(sp => sp.GetRequiredService<SettingsService>());
         services.AddSingleton(TimeProvider.System);
 
-        services.AddSingleton(sp => new SqliteStore(sp.GetRequiredService<DataPaths>().DatabasePath));
-        services.AddSingleton<IDocumentStore>(sp => sp.GetRequiredService<SqliteStore>());
-        services.AddSingleton<IVectorStore>(sp => sp.GetRequiredService<SqliteStore>());
-
-        services.AddSingleton<ITextExtractor, TextFileExtractor>();
-        services.AddSingleton<ITextExtractor, PdfTextExtractor>();
         services.AddSingleton(new TextChunker(new ChunkingOptions()));
         services.AddSingleton(new RetrievalOptions());
 
         services.AddSingleton<IngestionPipeline>();
         services.AddSingleton<DocumentLibrary>();
+        services.AddSingleton<PassageLocator>();
         services.AddSingleton<Retriever>();
         services.AddSingleton<AnswerService>();
         services.AddSingleton<DocumentPreviewService>();

@@ -4,6 +4,7 @@ using Scrinium.Core.Ingestion;
 using Scrinium.Core.Preview;
 using Scrinium.Core.Settings;
 using Scrinium.Core.Storage;
+using Scrinium.Desktop.Ollama;
 
 namespace Scrinium.Desktop.ViewModels;
 
@@ -11,6 +12,7 @@ public sealed partial class PanelHost(
     DocumentPreviewService previews,
     SettingsService settings,
     DocumentLibrary library,
+    OllamaMonitor monitor,
     DataPaths paths) : ObservableObject
 {
     [ObservableProperty]
@@ -39,7 +41,14 @@ public sealed partial class PanelHost(
         if (Current is SettingsPanelViewModel)
             Close();
         else
-            Open(new SettingsPanelViewModel(settings, library, paths.Root));
+            OpenSettings();
+    }
+
+    private void OpenSettings()
+    {
+        var panel = new SettingsPanelViewModel(settings, library, monitor, paths.Root);
+        Open(panel);
+        _ = panel.RefreshModelsAsync();
     }
 
     public void Close() => Current = null;

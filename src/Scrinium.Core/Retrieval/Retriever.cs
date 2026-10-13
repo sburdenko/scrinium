@@ -6,25 +6,20 @@ using Scrinium.Core.Storage;
 
 namespace Scrinium.Core.Retrieval;
 
-public sealed record RetrievalOptions(
-    int TopK = 6,
-    int ContextTokenBudget = 3000,
-    int PreviewLength = 220,
-    double MinScore = 0.5,
-    double ScoreMargin = 0.10);
-
 public sealed class Retriever(
     IVectorStore vectors,
     IDocumentStore documents,
     IEmbeddingGenerator<string, Embedding<float>> embedder,
     ISettingsProvider settings,
+    PassageLocator passageLocator,
     RetrievalOptions options)
 {
     public async Task<RetrievalOutcome> RetrieveAsync(string query, CancellationToken ct = default)
     {
         var model = settings.Current.EmbeddingModel;
         var generated = await embedder.GenerateAsync([query], new EmbeddingGenerationOptions { ModelId = model }, ct);
-        var candidates = await vectors.SearchAsync(generated[0].Vector.ToArray(), model, options.TopK, ct);
+        var queryVector = generated[0].Vector.ToArray();
+        var candidates = await vectors.SearchAsync(queryVector, model, options.TopK, ct);
 
         if (candidates.Count == 0)
             return new RetrievalOutcome.ArchiveEmpty();
@@ -37,11 +32,15 @@ public sealed class Retriever(
         if (relevant.Count == 0)
             return new RetrievalOutcome.NothingRelevant(best.DocumentTitle, best.Score);
 
-        return new RetrievalOutcome.Found(await BuildFragmentsAsync(relevant, ct));
+        return new RetrievalOutcome.Found(await BuildFragmentsAsync(relevant, queryVector, ct));
     }
 
-    private async Task<IReadOnlyList<ContextFragment>> BuildFragmentsAsync(IReadOnlyList<ChunkHit> hits, CancellationToken ct)
+    private async Task<IReadOnlyList<ContextFragment>> BuildFragmentsAsync(
+        IReadOnlyList<ChunkHit> hits,
+        float[] queryVector,
+        CancellationToken ct)
     {
+        var passages = await passageLocator.LocateAsync(hits, queryVector, ct);
         var topChunkIds = hits.Select(h => h.Chunk.Id).ToHashSet();
         var fragments = new List<ContextFragment>();
         var budget = 0.0;
@@ -54,7 +53,7 @@ public sealed class Retriever(
                 break;
 
             budget += weight;
-            fragments.Add(new ContextFragment(ToCitation(fragments.Count + 1, hit), text));
+            fragments.Add(new ContextFragment(ToCitation(fragments.Count + 1, hit, passages[hit.Chunk.Id]), text));
         }
 
         return fragments;
@@ -71,12 +70,13 @@ public sealed class Retriever(
         return string.Join("\n", parts);
     }
 
-    private Citation ToCitation(int number, ChunkHit hit)
+    private Citation ToCitation(int number, ChunkHit hit, PassageSpan passage)
     {
         var chunk = hit.Chunk;
-        var preview = chunk.Text.Length <= options.PreviewLength
-            ? chunk.Text
-            : chunk.Text[..options.PreviewLength].TrimEnd() + "…";
+        var sentence = chunk.Text.Substring(passage.Start, passage.Length);
+        var preview = sentence.Length <= options.PreviewLength
+            ? sentence
+            : sentence[..options.PreviewLength].TrimEnd() + "…";
 
         return new Citation(
             number,
@@ -85,6 +85,6 @@ public sealed class Retriever(
             chunk.Page,
             chunk.Date,
             preview,
-            new SourceLocation(chunk.DocumentId, chunk.Page, chunk.Offset, chunk.Text.Length));
+            new SourceLocation(chunk.DocumentId, chunk.Page, chunk.Offset + passage.Start, passage.Length));
     }
 }

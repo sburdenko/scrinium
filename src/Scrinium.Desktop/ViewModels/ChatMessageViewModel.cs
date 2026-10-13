@@ -5,16 +5,6 @@ using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public enum MessagePhase
-{
-    Searching,
-    Composing,
-    Writing,
-    Done,
-    Stopped,
-    Failed
-}
-
 public sealed partial class ChatMessageViewModel : ObservableObject
 {
     private ChatMessageViewModel(bool isUser, string text, MessagePhase phase)
@@ -42,7 +32,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     {
         MessagePhase.Searching => "Searching your documents…",
         MessagePhase.Composing when Citations.Count == 0 => "No matching fragments found…",
-        MessagePhase.Composing => $"Found {Citations.Count} fragments. Writing the answer…",
+        MessagePhase.Composing => $"Found {Citations.Count} {(Citations.Count == 1 ? "fragment" : "fragments")}. Writing the answer…",
         _ => ""
     };
 
@@ -56,11 +46,28 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 
     public bool IsFinished => Phase is MessagePhase.Done or MessagePhase.Stopped;
 
+    public string SourcesHeader
+    {
+        get
+        {
+            if (!IsFinished)
+                return $"Retrieved fragments ({Citations.Count})";
+
+            var cited = Citations.Count(c => c.IsCited);
+            return cited switch
+            {
+                0 => $"Retrieved fragments, none cited ({Citations.Count})",
+                _ when cited == Citations.Count => $"Sources ({cited})",
+                _ => $"Sources ({cited} cited, {Citations.Count - cited} more retrieved)"
+            };
+        }
+    }
+
     [ObservableProperty]
     private string _text;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusLine), nameof(IsWriting), nameof(IsFailed), nameof(IsStopped), nameof(IsTextVisible), nameof(IsFinished))]
+    [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusLine), nameof(SourcesHeader), nameof(IsWriting), nameof(IsFailed), nameof(IsStopped), nameof(IsTextVisible), nameof(IsFinished))]
     private MessagePhase _phase;
 
     [ObservableProperty]
@@ -73,6 +80,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
             Citations.Add(new CitationViewModel(citation));
 
         OnPropertyChanged(nameof(HasCitations));
+        OnPropertyChanged(nameof(SourcesHeader));
         Phase = MessagePhase.Composing;
         OnPropertyChanged(nameof(StatusLine));
     }
@@ -100,5 +108,6 @@ public sealed partial class ChatMessageViewModel : ObservableObject
             citation.IsCited = cited.Contains(citation.Number);
 
         Phase = phase;
+        OnPropertyChanged(nameof(SourcesHeader));
     }
 }

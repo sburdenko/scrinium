@@ -2,14 +2,6 @@ using Scrinium.Core.Documents;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public enum SourceStatus
-{
-    Waiting,
-    Indexing,
-    Ready,
-    Failed
-}
-
 public sealed class SourceItemViewModel(Document document, string currentEmbeddingModel)
 {
     public Guid Id { get; } = document.Id;

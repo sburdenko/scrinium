@@ -1,4 +1,5 @@
 using OllamaSharp;
+using Scrinium.Core.Models;
 using Scrinium.Core.Settings;
 
 namespace Scrinium.Desktop.Ollama;
@@ -24,6 +25,38 @@ public sealed class OllamaMonitor(OllamaApiClient client, ISettingsProvider sett
             .ToList();
 
         return missing.Count == 0 ? new OllamaStatus.Ready() : new OllamaStatus.MissingModels(missing);
+    }
+
+    public async Task<ModelCatalog> ListModelsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var names = (await client.ListLocalModelsAsync(ct)).Select(m => m.Name).ToList();
+            var models = new List<InstalledModel>(names.Count);
+            foreach (var name in names)
+                models.Add(await DescribeAsync(name, ct));
+
+            return new ModelCatalog.Available(models);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            return new ModelCatalog.Unavailable();
+        }
+    }
+
+    private async Task<InstalledModel> DescribeAsync(string name, CancellationToken ct)
+    {
+        var capabilities = (await client.ShowModelAsync(name, ct)).Capabilities?.ToList() ?? [];
+        if (capabilities.Count == 0)
+            return new InstalledModel(name, ModelRoles.Chat | ModelRoles.Embedding);
+
+        var roles = ModelRoles.None;
+        if (capabilities.Contains("completion", StringComparer.OrdinalIgnoreCase))
+            roles |= ModelRoles.Chat;
+        if (capabilities.Contains("embedding", StringComparer.OrdinalIgnoreCase))
+            roles |= ModelRoles.Embedding;
+
+        return new InstalledModel(name, roles);
     }
 
     public async IAsyncEnumerable<string> PullAsync(

@@ -2,7 +2,9 @@ using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Scrinium.Core.Documents;
 
-namespace Scrinium.Core.Storage;
+using Scrinium.Core.Storage;
+
+namespace Scrinium.Storage;
 
 public sealed class SqliteStore : IDocumentStore, IVectorStore
 {

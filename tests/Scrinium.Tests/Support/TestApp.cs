@@ -1,3 +1,5 @@
+using Scrinium.Storage;
+using Scrinium.Extraction;
 using Microsoft.Extensions.AI;
 using Scrinium.Core.Chat;
 using Scrinium.Core.Chunking;
@@ -26,7 +28,7 @@ public sealed class TestApp : IDisposable
         var chunker = new TextChunker(new ChunkingOptions(MaxTokens: 60, OverlapTokens: 8));
         Pipeline = new IngestionPipeline(Store, extractors, chunker, Embedder, Settings, Paths);
         Library = new DocumentLibrary(Store, Pipeline, Paths, TimeProvider.System);
-        Retriever = new Retriever(Store, Store, Embedder, Settings, retrieval ?? new RetrievalOptions());
+        Retriever = new Retriever(Store, Store, Embedder, Settings, new PassageLocator(Embedder, Settings), retrieval ?? new RetrievalOptions());
         Answers = new AnswerService(Retriever, Chat, Settings);
         Preview = new DocumentPreviewService(Store, extractors, Paths);
     }

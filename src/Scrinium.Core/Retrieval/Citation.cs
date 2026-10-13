@@ -10,5 +10,3 @@ public sealed record Citation(
     DateOnly Date,
     string Preview,
     SourceLocation Location);
-
-public sealed record ContextFragment(Citation Citation, string PromptText);

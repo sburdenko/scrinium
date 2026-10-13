@@ -1,7 +1,9 @@
 using System.Text;
 using Scrinium.Core.Documents;
 
-namespace Scrinium.Core.Extraction;
+using Scrinium.Core.Extraction;
+
+namespace Scrinium.Extraction;
 
 public sealed class TextFileExtractor : ITextExtractor
 {

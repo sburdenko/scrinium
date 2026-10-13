@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             xmlns:ctl="using:Scrinium.Desktop.Controls"
              x:Class="Scrinium.Desktop.Views.RightPanelView"
              x:DataType="vm:PanelHost">
   <Border Background="{DynamicResource Sidebar}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
@@ -17,19 +18,15 @@
                       IsVisible="{Binding IsAvailable}" />
               <Button Grid.Column="2" Classes="ghost" Content="✕" Command="{Binding CloseCommand}" />
             </Grid>
-            <ScrollViewer Grid.Row="1">
-              <Border Classes="card" Padding="16">
-                <Grid>
-                  <TextBlock IsVisible="{Binding !IsAvailable}" Classes="muted" TextWrapping="Wrap"
-                             Text="The original is unavailable: the file was removed or cannot be read." />
-                  <SelectableTextBlock IsVisible="{Binding IsAvailable}" TextWrapping="Wrap" LineHeight="22">
-                    <Run Text="{Binding Before}" />
-                    <Run Text="{Binding Highlight}" Background="{DynamicResource AccentSoft}" FontWeight="SemiBold" />
-                    <Run Text="{Binding After}" />
-                  </SelectableTextBlock>
-                </Grid>
-              </Border>
-            </ScrollViewer>
+            <Border Grid.Row="1" Classes="card" ClipToBounds="True">
+              <Grid>
+                <TextBlock IsVisible="{Binding !IsAvailable}" Classes="muted" TextWrapping="Wrap" Margin="16"
+                           Text="The original is unavailable: the file was removed or cannot be read." />
+                <ctl:HighlightedTextViewer IsVisible="{Binding IsAvailable}" Padding="16"
+                                           Before="{Binding Before}" Highlight="{Binding Highlight}"
+                                           After="{Binding After}" />
+              </Grid>
+            </Border>
           </Grid>
         </DataTemplate>
 
@@ -42,15 +39,22 @@
               </Grid>
 
               <StackPanel Spacing="6">
-                <TextBlock Text="ANSWER MODEL (Ollama)" Classes="title" />
-                <TextBox Text="{Binding ChatModel}" />
+                <TextBlock Text="ANSWER MODEL" Classes="title" />
+                <ComboBox ItemsSource="{Binding ChatModels}" SelectedItem="{Binding ChatModel}"
+                          HorizontalAlignment="Stretch" />
               </StackPanel>
               <StackPanel Spacing="6">
-                <TextBlock Text="EMBEDDING MODEL (Ollama)" Classes="title" />
-                <TextBox Text="{Binding EmbeddingModel}" />
+                <TextBlock Text="EMBEDDING MODEL" Classes="title" />
+                <ComboBox ItemsSource="{Binding EmbeddingModels}" SelectedItem="{Binding EmbeddingModel}"
+                          HorizontalAlignment="Stretch" />
                 <TextBlock Classes="muted small" TextWrapping="Wrap"
                            Text="After changing the embedding model, documents must be reindexed or search will not see them." />
               </StackPanel>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding ModelsNote}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="ghost" Content="Refresh" Command="{Binding RefreshModelsCommand}" />
+              </Grid>
+
               <StackPanel Spacing="6">
                 <TextBlock Text="OLLAMA ADDRESS" Classes="title" />
                 <TextBox Text="{Binding OllamaUrl}" />

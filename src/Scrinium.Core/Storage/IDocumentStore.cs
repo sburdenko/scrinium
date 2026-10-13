@@ -26,12 +26,3 @@ public interface IDocumentStore
 
     Task DeleteAsync(Guid documentId, CancellationToken ct = default);
 }
-
-public interface IVectorStore
-{
-    Task<IReadOnlyList<ChunkHit>> SearchAsync(
-        float[] query,
-        string embeddingModel,
-        int topK,
-        CancellationToken ct = default);
-}

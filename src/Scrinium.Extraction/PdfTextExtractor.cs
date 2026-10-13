@@ -2,7 +2,9 @@ using Scrinium.Core.Documents;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
-namespace Scrinium.Core.Extraction;
+using Scrinium.Core.Extraction;
+
+namespace Scrinium.Extraction;
 
 public sealed class PdfTextExtractor : ITextExtractor
 {
@@ -22,5 +24,3 @@ public sealed class PdfTextExtractor : ITextExtractor
         return segments;
     }
 }
-
-public sealed class TextExtractionException(string message) : Exception(message);
