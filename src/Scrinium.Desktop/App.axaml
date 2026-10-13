@@ -1,0 +1,149 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Scrinium.Desktop.App"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Bg" Color="#FAF9F6" />
+          <SolidColorBrush x:Key="Sidebar" Color="#F2F0EA" />
+          <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SurfaceHover" Color="#ECE9E1" />
+          <SolidColorBrush x:Key="Line" Color="#E2DED3" />
+          <SolidColorBrush x:Key="Ink" Color="#1F1E1B" />
+          <SolidColorBrush x:Key="InkMuted" Color="#7A766B" />
+          <SolidColorBrush x:Key="Accent" Color="#4F46E5" />
+          <SolidColorBrush x:Key="AccentHover" Color="#4338CA" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#E9E8FC" />
+          <SolidColorBrush x:Key="Ok" Color="#2F9E5B" />
+          <SolidColorBrush x:Key="Warn" Color="#D9822B" />
+          <SolidColorBrush x:Key="Danger" Color="#C8452D" />
+          <SolidColorBrush x:Key="DangerSoft" Color="#FBE9E4" />
+          <SolidColorBrush x:Key="WarnSoft" Color="#FCF0DD" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Bg" Color="#16151A" />
+          <SolidColorBrush x:Key="Sidebar" Color="#1B1A21" />
+          <SolidColorBrush x:Key="Surface" Color="#22212A" />
+          <SolidColorBrush x:Key="SurfaceHover" Color="#2B2A35" />
+          <SolidColorBrush x:Key="Line" Color="#32303C" />
+          <SolidColorBrush x:Key="Ink" Color="#ECEAF2" />
+          <SolidColorBrush x:Key="InkMuted" Color="#9692A3" />
+          <SolidColorBrush x:Key="Accent" Color="#8B85FF" />
+          <SolidColorBrush x:Key="AccentHover" Color="#A19CFF" />
+          <SolidColorBrush x:Key="AccentSoft" Color="#2C2A52" />
+          <SolidColorBrush x:Key="Ok" Color="#4CC27F" />
+          <SolidColorBrush x:Key="Warn" Color="#E8A04F" />
+          <SolidColorBrush x:Key="Danger" Color="#F0745B" />
+          <SolidColorBrush x:Key="DangerSoft" Color="#3A2420" />
+          <SolidColorBrush x:Key="WarnSoft" Color="#3A2E1C" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource Bg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="TextBlock.small">
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+
+    <Style Selector="Button.primary">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentHover}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Line}" />
+      <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+
+    <Style Selector="Button.ghost">
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Button.ghost /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
+    </Style>
+
+    <Style Selector="Button.cite">
+      <Setter Property="MinWidth" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="Padding" Value="5,0" />
+      <Setter Property="Margin" Value="1,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.cite /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="Button.cite:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource Surface}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Line}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Ellipse.dot">
+      <Setter Property="Width" Value="8" />
+      <Setter Property="Height" Value="8" />
+      <Setter Property="Fill" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="Ellipse.dot.ready">
+      <Setter Property="Fill" Value="{DynamicResource Ok}" />
+    </Style>
+    <Style Selector="Ellipse.dot.busy">
+      <Setter Property="Fill" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="Ellipse.dot.stale">
+      <Setter Property="Fill" Value="{DynamicResource Warn}" />
+    </Style>
+    <Style Selector="Ellipse.dot.failed">
+      <Setter Property="Fill" Value="{DynamicResource Danger}" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12,9" />
+    </Style>
+  </Application.Styles>
+</Application>

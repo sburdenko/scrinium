@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Scrinium.Desktop.ViewModels"
+        xmlns:views="using:Scrinium.Desktop.Views"
+        x:Class="Scrinium.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Scrinium"
+        Width="1320" Height="820" MinWidth="980" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Grid.Row="0" Padding="16,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Border Width="22" Height="22" CornerRadius="7" Background="{DynamicResource Accent}">
+            <TextBlock Text="S" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Scrinium" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="ghost" Content="New chat" Command="{Binding Chat.NewChatCommand}" />
+        <Button Grid.Column="2" Classes="ghost" Content="Settings" Command="{Binding ToggleSettingsCommand}" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" IsVisible="{Binding Banner.IsVisible}" Padding="16,10"
+            Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
+        <Ellipse Classes="dot stale" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding Banner.Message}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <Button Grid.Column="2" Classes="primary" Content="Start Ollama"
+                IsVisible="{Binding Banner.CanStart}" Command="{Binding Banner.StartOllamaCommand}" />
+        <Button Grid.Column="3" Classes="primary" Content="Download models"
+                IsVisible="{Binding Banner.CanPull}" Command="{Binding Banner.PullMissingCommand}" />
+        <Button Grid.Column="4" Classes="ghost" Content="Check again" Command="{Binding Banner.RecheckCommand}" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="310,*,Auto">
+      <views:SourcesView Grid.Column="0" DataContext="{Binding Sources}" />
+      <views:ChatView Grid.Column="1" DataContext="{Binding Chat}" />
+      <views:RightPanelView Grid.Column="2" Width="460" DataContext="{Binding Panel}" IsVisible="{Binding IsOpen}" />
+    </Grid>
+  </Grid>
+</Window>

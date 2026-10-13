@@ -1,0 +1,25 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using Scrinium.Core.Documents;
+using Scrinium.Core.Retrieval;
+
+namespace Scrinium.Desktop.ViewModels;
+
+public sealed partial class CitationViewModel(Citation citation) : ObservableObject
+{
+    public int Number { get; } = citation.Number;
+
+    public string Label { get; } = $"[{citation.Number}]";
+
+    public string DocumentTitle { get; } = citation.DocumentTitle;
+
+    public string Subtitle { get; } = citation.Page is { } page
+        ? $"p. {page} · {citation.Date:yyyy-MM-dd}"
+        : citation.Date.ToString("yyyy-MM-dd");
+
+    public string Preview { get; } = citation.Preview.ReplaceLineEndings(" ");
+
+    public SourceLocation Location { get; } = citation.Location;
+
+    [ObservableProperty]
+    private bool _isCited;
+}

@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             x:Class="Scrinium.Desktop.Views.RightPanelView"
+             x:DataType="vm:PanelHost">
+  <Border Background="{DynamicResource Sidebar}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+    <ContentControl Content="{Binding Current}">
+      <ContentControl.DataTemplates>
+        <DataTemplate x:DataType="vm:PreviewPanelViewModel">
+          <Grid RowDefinitions="Auto,*" Margin="18,16">
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12" ColumnSpacing="4">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding PageLabel}" Classes="muted small" />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="Open file" Command="{Binding OpenOriginalCommand}"
+                      IsVisible="{Binding IsAvailable}" />
+              <Button Grid.Column="2" Classes="ghost" Content="✕" Command="{Binding CloseCommand}" />
+            </Grid>
+            <ScrollViewer Grid.Row="1">
+              <Border Classes="card" Padding="16">
+                <Grid>
+                  <TextBlock IsVisible="{Binding !IsAvailable}" Classes="muted" TextWrapping="Wrap"
+                             Text="The original is unavailable: the file was removed or cannot be read." />
+                  <SelectableTextBlock IsVisible="{Binding IsAvailable}" TextWrapping="Wrap" LineHeight="22">
+                    <Run Text="{Binding Before}" />
+                    <Run Text="{Binding Highlight}" Background="{DynamicResource AccentSoft}" FontWeight="SemiBold" />
+                    <Run Text="{Binding After}" />
+                  </SelectableTextBlock>
+                </Grid>
+              </Border>
+            </ScrollViewer>
+          </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:DataType="vm:SettingsPanelViewModel">
+          <ScrollViewer>
+            <StackPanel Margin="18,16" Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Settings" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="ghost" Content="✕" Command="{Binding CloseCommand}" />
+              </Grid>
+
+              <StackPanel Spacing="6">
+                <TextBlock Text="ANSWER MODEL (Ollama)" Classes="title" />
+                <TextBox Text="{Binding ChatModel}" />
+              </StackPanel>
+              <StackPanel Spacing="6">
+                <TextBlock Text="EMBEDDING MODEL (Ollama)" Classes="title" />
+                <TextBox Text="{Binding EmbeddingModel}" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="After changing the embedding model, documents must be reindexed or search will not see them." />
+              </StackPanel>
+              <StackPanel Spacing="6">
+                <TextBlock Text="OLLAMA ADDRESS" Classes="title" />
+                <TextBox Text="{Binding OllamaUrl}" />
+              </StackPanel>
+
+              <Button Classes="primary" Content="Save" HorizontalAlignment="Left"
+                      IsEnabled="{Binding HasChanges}" Command="{Binding SaveCommand}" />
+              <Button Classes="ghost" Content="Reindex everything" HorizontalAlignment="Left"
+                      Command="{Binding ReindexAllCommand}" />
+              <TextBlock Text="{Binding SavedNote}" Classes="muted small" TextWrapping="Wrap" />
+
+              <StackPanel Spacing="6" Margin="0,8,0,0">
+                <TextBlock Text="DATA FOLDER" Classes="title" />
+                <TextBlock Text="{Binding DataDirectory}" Classes="muted small" TextWrapping="Wrap" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="The database and originals live here. To back up, copy this folder." />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </DataTemplate>
+      </ContentControl.DataTemplates>
+    </ContentControl>
+  </Border>
+</UserControl>

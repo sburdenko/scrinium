@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             x:Class="Scrinium.Desktop.Views.SourcesView"
+             x:DataType="vm:SourcesViewModel"
+             x:Name="Root">
+  <Border Background="{DynamicResource Sidebar}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14,14,14,12">
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="2,0,0,10">
+        <TextBlock Text="SOURCES" Classes="title" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="primary" Content="+ Add" Padding="12,6" Command="{Binding AddFilesCommand}" />
+      </Grid>
+
+      <TextBox Grid.Row="1" PlaceholderText="Filter by name" Text="{Binding Filter}" Margin="0,0,0,10" />
+
+      <Grid Grid.Row="2">
+        <ListBox ItemsSource="{Binding Items}" Background="Transparent" Padding="0"
+                 SelectionMode="Single" IsVisible="{Binding !IsEmpty}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:SourceItemViewModel">
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4" ColumnSpacing="10">
+                <Border Width="38" Height="38" CornerRadius="9" Background="{DynamicResource Surface}"
+                        BorderBrush="{DynamicResource Line}" BorderThickness="1" VerticalAlignment="Top">
+                  <TextBlock Text="{Binding KindLabel}" FontSize="10" FontWeight="SemiBold"
+                             Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="Medium" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Ellipse Classes="dot" VerticalAlignment="Center"
+                             Classes.ready="{Binding IsReady}" Classes.busy="{Binding IsBusy}"
+                             Classes.stale="{Binding IsStale}" Classes.failed="{Binding IsFailed}" />
+                    <TextBlock Text="{Binding DateText}" Classes="muted small" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding StatusText}" Classes="muted small" TextWrapping="Wrap" MaxLines="3" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                  <Button Classes="ghost" Content="↻" ToolTip.Tip="Retry" Padding="6,2"
+                          IsVisible="{Binding IsFailed}"
+                          Command="{Binding #Root.((vm:SourcesViewModel)DataContext).RetryCommand}"
+                          CommandParameter="{Binding}" />
+                  <Button Classes="ghost" Content="✕" ToolTip.Tip="Delete" Padding="6,2"
+                          Command="{Binding #Root.((vm:SourcesViewModel)DataContext).DeleteCommand}"
+                          CommandParameter="{Binding}" />
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Border IsVisible="{Binding IsEmpty}" BorderBrush="{DynamicResource Line}" BorderThickness="1"
+                CornerRadius="12" Padding="18" VerticalAlignment="Top" Margin="0,6,0,0">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Nothing here yet" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Drop .txt, .md or .pdf files here, or press “Add”. Everything stays on this computer." />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <StackPanel Grid.Row="3" Spacing="8" Margin="0,10,0,0">
+        <Border IsVisible="{Binding LastError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Background="{DynamicResource DangerSoft}" CornerRadius="8" Padding="10">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding LastError}" TextWrapping="Wrap" Classes="small" />
+            <Button Grid.Column="1" Classes="ghost" Content="✕" Padding="6,0" Command="{Binding DismissErrorCommand}" />
+          </Grid>
+        </Border>
+        <Button Classes="ghost" Content="Retry all failures" IsVisible="{Binding HasFailed}"
+                HorizontalAlignment="Stretch" Command="{Binding RetryFailedCommand}" />
+        <TextBlock Text="{Binding Summary}" Classes="muted small" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Scrinium.Core/Scrinium.Core.csproj" />
+    <Project Path="src/Scrinium.Desktop/Scrinium.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Scrinium.Tests/Scrinium.Tests.csproj" />
+  </Folder>
+</Solution>
