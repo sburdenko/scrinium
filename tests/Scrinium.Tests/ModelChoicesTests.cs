@@ -6,9 +6,9 @@ public class ModelChoicesTests
 {
     private static readonly ModelCatalog Installed = new ModelCatalog.Available(
     [
-        new InstalledModel("qwen3-coder:30b", CanChat: true, CanEmbed: false),
-        new InstalledModel("bge-m3:latest", CanChat: false, CanEmbed: true),
-        new InstalledModel("gemma3:12b", CanChat: true, CanEmbed: false)
+        new InstalledModel("qwen3-coder:30b", ModelRoles.Chat),
+        new InstalledModel("bge-m3:latest", ModelRoles.Embedding),
+        new InstalledModel("gemma3:12b", ModelRoles.Chat)
     ]);
 
     [Fact]
@@ -30,7 +30,7 @@ public class ModelChoicesTests
     [Fact]
     public void A_model_that_does_both_appears_in_both_lists()
     {
-        var catalog = new ModelCatalog.Available([new InstalledModel("all-rounder", CanChat: true, CanEmbed: true)]);
+        var catalog = new ModelCatalog.Available([new InstalledModel("all-rounder", ModelRoles.Chat | ModelRoles.Embedding)]);
 
         var choices = ModelChoices.From(catalog, "all-rounder", "all-rounder");
 
@@ -75,7 +75,7 @@ public class ModelChoicesTests
     [Fact]
     public void A_configured_latest_tag_matches_the_untagged_installed_name()
     {
-        var catalog = new ModelCatalog.Available([new InstalledModel("bge-m3", CanChat: false, CanEmbed: true)]);
+        var catalog = new ModelCatalog.Available([new InstalledModel("bge-m3", ModelRoles.Embedding)]);
 
         var choices = ModelChoices.From(catalog, "gemma3:12b", "bge-m3:latest");
 

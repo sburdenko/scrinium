@@ -6,6 +6,5 @@ public sealed record DocumentPreview(
     string Before,
     string Highlight,
     string After,
-    bool HasMoreBefore,
-    bool HasMoreAfter,
+    PreviewTruncation Truncation,
     string OriginalPath);

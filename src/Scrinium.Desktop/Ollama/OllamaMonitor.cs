@@ -48,11 +48,15 @@ public sealed class OllamaMonitor(OllamaApiClient client, ISettingsProvider sett
     {
         var capabilities = (await client.ShowModelAsync(name, ct)).Capabilities?.ToList() ?? [];
         if (capabilities.Count == 0)
-            return new InstalledModel(name, CanChat: true, CanEmbed: true);
+            return new InstalledModel(name, ModelRoles.Chat | ModelRoles.Embedding);
 
-        var canEmbed = capabilities.Contains("embedding", StringComparer.OrdinalIgnoreCase);
-        var canChat = capabilities.Contains("completion", StringComparer.OrdinalIgnoreCase);
-        return new InstalledModel(name, canChat, canEmbed);
+        var roles = ModelRoles.None;
+        if (capabilities.Contains("completion", StringComparer.OrdinalIgnoreCase))
+            roles |= ModelRoles.Chat;
+        if (capabilities.Contains("embedding", StringComparer.OrdinalIgnoreCase))
+            roles |= ModelRoles.Embedding;
+
+        return new InstalledModel(name, roles);
     }
 
     public async IAsyncEnumerable<string> PullAsync(

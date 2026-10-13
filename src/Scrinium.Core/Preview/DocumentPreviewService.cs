@@ -44,8 +44,11 @@ public sealed class DocumentPreviewService(
             text[from..start],
             text[start..end],
             text[end..to],
-            from > 0,
-            to < text.Length,
+            Truncation(from > 0, to < text.Length),
             originalPath);
     }
+
+    private static PreviewTruncation Truncation(bool cutAtStart, bool cutAtEnd) =>
+        (cutAtStart ? PreviewTruncation.Start : PreviewTruncation.None)
+        | (cutAtEnd ? PreviewTruncation.End : PreviewTruncation.None);
 }

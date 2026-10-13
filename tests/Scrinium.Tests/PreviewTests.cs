@@ -1,4 +1,5 @@
 using Scrinium.Core.Documents;
+using Scrinium.Core.Preview;
 using Scrinium.Tests.Support;
 
 namespace Scrinium.Tests;
@@ -20,8 +21,7 @@ public sealed class PreviewTests : IDisposable
 
         Assert.NotNull(preview);
         Assert.Equal("ВАЖНЫЙ КУСОК", preview.Highlight);
-        Assert.True(preview.HasMoreBefore);
-        Assert.True(preview.HasMoreAfter);
+        Assert.Equal(PreviewTruncation.Start | PreviewTruncation.End, preview.Truncation);
         Assert.EndsWith("x ", preview.Before);
     }
 

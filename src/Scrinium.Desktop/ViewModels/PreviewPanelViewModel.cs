@@ -17,15 +17,11 @@ public sealed partial class PreviewPanelViewModel(DocumentPreview? preview, stri
 
     public string PageLabel { get; } = preview?.Page is { } page ? $"Page {page}" : "";
 
-    public string Before { get; } = preview?.Before ?? "";
+    public string Before { get; } = Ellipsis(preview, PreviewTruncation.Start) + (preview?.Before ?? "");
 
     public string Highlight { get; } = preview?.Highlight ?? "";
 
-    public string After { get; } = preview?.After ?? "";
-
-    public bool HasMoreBefore { get; } = preview?.HasMoreBefore ?? false;
-
-    public bool HasMoreAfter { get; } = preview?.HasMoreAfter ?? false;
+    public string After { get; } = (preview?.After ?? "") + Ellipsis(preview, PreviewTruncation.End);
 
     public bool IsAvailable { get; } = preview is not null;
 
@@ -37,4 +33,7 @@ public sealed partial class PreviewPanelViewModel(DocumentPreview? preview, stri
         if (OriginalPath is not null)
             ExternalOpener.Open(OriginalPath);
     }
+
+    private static string Ellipsis(DocumentPreview? preview, PreviewTruncation edge) =>
+        preview is not null && preview.Truncation.HasFlag(edge) ? (edge == PreviewTruncation.Start ? "…\n" : "\n…") : "";
 }

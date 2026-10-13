@@ -7,8 +7,8 @@ public sealed record ModelChoices(IReadOnlyList<string> Chat, IReadOnlyList<stri
         var installed = catalog is ModelCatalog.Available available ? available.Models : [];
 
         return new ModelChoices(
-            WithCurrent(currentChat, installed.Where(m => m.CanChat).Select(m => m.Name)),
-            WithCurrent(currentEmbedding, installed.Where(m => m.CanEmbed).Select(m => m.Name)));
+            WithCurrent(currentChat, installed.Where(m => m.Roles.HasFlag(ModelRoles.Chat)).Select(m => m.Name)),
+            WithCurrent(currentEmbedding, installed.Where(m => m.Roles.HasFlag(ModelRoles.Embedding)).Select(m => m.Name)));
     }
 
     private static IReadOnlyList<string> WithCurrent(string current, IEnumerable<string> names) =>
