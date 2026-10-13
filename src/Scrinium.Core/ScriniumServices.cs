@@ -28,6 +28,7 @@ public static class ScriniumServices
 
         services.AddSingleton<IngestionPipeline>();
         services.AddSingleton<DocumentLibrary>();
+        services.AddHostedService<IngestionWorkerService>();
         services.AddSingleton<PassageLocator>();
         services.AddSingleton<Retriever>();
         services.AddSingleton<AnswerService>();

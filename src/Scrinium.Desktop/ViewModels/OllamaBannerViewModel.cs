@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Scrinium.Desktop.Ollama;
+using Scrinium.Ollama;
 
 namespace Scrinium.Desktop.ViewModels;
 

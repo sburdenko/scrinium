@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Hosting;
-using Scrinium.Core.Ingestion;
 
-namespace Scrinium.Desktop.Hosting;
+namespace Scrinium.Core.Ingestion;
 
 public sealed class IngestionWorkerService(DocumentLibrary library) : BackgroundService
 {

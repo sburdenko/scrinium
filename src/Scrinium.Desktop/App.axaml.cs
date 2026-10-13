@@ -1,15 +1,12 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OllamaSharp;
 using Scrinium.Core;
 using Scrinium.Core.Ingestion;
 using Scrinium.Core.Settings;
-using Scrinium.Desktop.Hosting;
-using Scrinium.Desktop.Ollama;
+using Scrinium.Ollama;
 using Scrinium.Desktop.Services;
 using Scrinium.Desktop.ViewModels;
 using Scrinium.Desktop.Views;
@@ -51,18 +48,7 @@ public sealed class App : Application
         builder.Services.AddScriniumSqliteStorage();
         builder.Services.AddScriniumTextExtractors();
 
-        builder.Services.AddSingleton(sp =>
-        {
-            var http = new HttpClient
-            {
-                BaseAddress = new Uri(sp.GetRequiredService<ISettingsProvider>().Current.OllamaUrl),
-                Timeout = TimeSpan.FromMinutes(10)
-            };
-            return new OllamaApiClient(http);
-        });
-        builder.Services.AddSingleton<IChatClient>(sp => sp.GetRequiredService<OllamaApiClient>());
-        builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp => sp.GetRequiredService<OllamaApiClient>());
-        builder.Services.AddSingleton<OllamaMonitor>();
+        builder.Services.AddScriniumOllama();
 
         builder.Services.AddSingleton<IFilePicker, AvaloniaFilePicker>();
         builder.Services.AddSingleton<PanelHost>();
@@ -70,7 +56,6 @@ public sealed class App : Application
         builder.Services.AddSingleton<ChatViewModel>();
         builder.Services.AddSingleton<OllamaBannerViewModel>();
         builder.Services.AddSingleton<MainViewModel>();
-        builder.Services.AddHostedService<IngestionWorkerService>();
 
         return builder.Build();
     }

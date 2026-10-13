@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\src\Scrinium.Core\Scrinium.Core.csproj" />
     <ProjectReference Include="..\..\src\Scrinium.Storage\Scrinium.Storage.csproj" />
     <ProjectReference Include="..\..\src\Scrinium.Extraction\Scrinium.Extraction.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Ollama\Scrinium.Ollama.csproj" />
     <ProjectReference Include="..\..\src\Scrinium.Desktop\Scrinium.Desktop.csproj" />
   </ItemGroup>
 </Project>

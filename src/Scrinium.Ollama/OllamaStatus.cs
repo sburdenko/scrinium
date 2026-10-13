@@ -1,4 +1,4 @@
-namespace Scrinium.Desktop.Ollama;
+namespace Scrinium.Ollama;
 
 public abstract record OllamaStatus
 {

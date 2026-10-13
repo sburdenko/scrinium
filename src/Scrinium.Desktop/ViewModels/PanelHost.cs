@@ -4,7 +4,7 @@ using Scrinium.Core.Ingestion;
 using Scrinium.Core.Preview;
 using Scrinium.Core.Settings;
 using Scrinium.Core.Storage;
-using Scrinium.Desktop.Ollama;
+using Scrinium.Ollama;
 
 namespace Scrinium.Desktop.ViewModels;
 

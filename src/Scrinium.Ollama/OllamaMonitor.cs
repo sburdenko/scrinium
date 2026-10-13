@@ -2,7 +2,7 @@ using OllamaSharp;
 using Scrinium.Core.Models;
 using Scrinium.Core.Settings;
 
-namespace Scrinium.Desktop.Ollama;
+namespace Scrinium.Ollama;
 
 public sealed class OllamaMonitor(OllamaApiClient client, ISettingsProvider settings)
 {
