@@ -96,7 +96,7 @@ public sealed class AnswerServiceTests : IDisposable
         var request = _app.Chat.Requests.Single();
         Assert.Equal(1 + 6 + 1, request.Count);
         Assert.Equal("q5", request[1].Text);
-        Assert.Equal("хостинг", request[^1].Text);
+        Assert.StartsWith("хостинг", request[^1].Text);
     }
 
     [Fact]
@@ -108,5 +108,63 @@ public sealed class AnswerServiceTests : IDisposable
 
         var system = _app.Chat.Requests.Single()[0].Text!;
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(system, "</fragment>"));
+    }
+
+    private static async Task<List<AnswerEvent>> AskWithAsync(string[] tokens, string question = "звук мотора")
+    {
+        using var app = new TestApp(new FakeChatClient(tokens));
+        await app.ImportAndProcessAsync(app.WriteFile("motor.md", "Звук мотора стал громче."));
+
+        var events = new List<AnswerEvent>();
+        await foreach (var e in app.Answers.AskAsync(question, []))
+            events.Add(e);
+        return events;
+    }
+
+    private static string Text(IEnumerable<AnswerEvent> events) =>
+        string.Concat(events.OfType<AnswerEvent.TextDelta>().Select(d => d.Text));
+
+    [Fact]
+    public async Task A_reply_that_starts_with_the_decline_marker_clears_the_sources_and_keeps_the_explanation()
+    {
+        var events = await AskWithAsync([PromptBuilder.DeclineMarker, " Dazu ", "habe ich keine ", "Angaben."]);
+
+        Assert.Equal(2, events.OfType<AnswerEvent.SourcesFound>().Count());
+        Assert.Empty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
+        Assert.Equal("Dazu habe ich keine Angaben.", Text(events));
+    }
+
+    [Fact]
+    public async Task A_decline_marker_split_across_tokens_is_still_recognised()
+    {
+        var events = await AskWithAsync(["[[", "NO", "NE]] ", "Nichts gefunden."]);
+
+        Assert.Empty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
+        Assert.Equal("Nichts gefunden.", Text(events));
+    }
+
+    [Fact]
+    public async Task A_decline_without_an_explanation_gets_a_standard_message()
+    {
+        var events = await AskWithAsync([PromptBuilder.DeclineMarker]);
+
+        Assert.Equal(PromptBuilder.DeclinedMessage, Text(events));
+    }
+
+    [Fact]
+    public async Task An_ordinary_answer_is_passed_through_unchanged_even_when_it_starts_with_a_bracket()
+    {
+        var events = await AskWithAsync(["[1] ", "Мотор ", "шумел."]);
+
+        Assert.Single(events.OfType<AnswerEvent.SourcesFound>());
+        Assert.Equal("[1] Мотор шумел.", Text(events));
+    }
+
+    [Fact]
+    public async Task A_very_short_answer_that_ends_the_stream_is_not_lost()
+    {
+        var events = await AskWithAsync(["Да"]);
+
+        Assert.Equal("Да", Text(events));
     }
 }

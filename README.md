@@ -19,6 +19,7 @@ Everything runs on your machine through [Ollama](https://ollama.com). Your docum
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
+- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; the committed reports for a German demo company show 35 of 35 cases passing.
 - **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
 - **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
 
@@ -110,6 +111,38 @@ Set values on the command line (`--Scrinium:ChatModel=gemma3:12b`) or as environ
 | `MaxQuestionLength`, `MaxHistoryItems` | Request limits | 2000, 20 |
 
 The page is served with a content security policy and renders answers as plain text. Behind a reverse proxy on the same host, `X-Forwarded-For` is honoured so limits apply per visitor.
+
+## Quality evaluation
+
+`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships a fictional German tax office, [`demo/steuerberatung-mueller`](demo/steuerberatung-mueller), with six documents (five Markdown files and a PDF) and 35 questions in German, English and Russian.
+
+```bash
+dotnet run --project tools/Scrinium.Eval -c Release -- \
+  --documents demo/steuerberatung-mueller/documents \
+  --cases demo/steuerberatung-mueller/evaluation.json \
+  --chat-model gemma3:12b \
+  --report demo/steuerberatung-mueller/reports/my-run.md
+```
+
+Every question states what a correct answer must contain, which document it must cite, or that the documents cannot answer it. The checks are mechanical, so a run needs no human and no second model:
+
+| Check | Passes when |
+|---|---|
+| facts | every expected word or number appears in the answer |
+| source | the expected document is among the cited ones |
+| refusal | a question the documents cannot answer cites nothing |
+| language | the answer is in the language of the question (skipped for very short answers) |
+
+Results on the demo set, `bge-m3` for embeddings:
+
+| Chat model | Cases passed | Median answer time |
+|---|---|---|
+| `gemma3:12b` | 35 / 35 | 6.9 s |
+| `qwen3-coder:30b` | 35 / 35 | 2.4 s |
+
+The reports in [`demo/steuerberatung-mueller/reports`](demo/steuerberatung-mueller/reports) list every case and, for failures, the answer that was given. Two things the first runs exposed are now handled by the prompt and the answering step: the model replied in English to German questions, and it cited sources while declining. A decline now starts with a marker the app removes, so a refusal carries no sources and keeps the language of the question.
+
+CI checks that the question set is valid and that every cited document exists; the model run itself is local.
 
 ## How an answer is made
 
@@ -262,8 +295,12 @@ src/
   Scrinium.Ollama/       Ollama client, status, model pull
   Scrinium.Desktop/      Avalonia app
   Scrinium.Server/       ASP.NET Core API and chat page
+tools/
+  Scrinium.Eval/         question-set runner, scoring and reports
+demo/
+  steuerberatung-mueller/  fictional German tax office: documents, questions, reports
 tests/
-  Scrinium.Tests/        unit, architecture and composition tests
+  Scrinium.Tests/        unit, architecture, composition and server tests
 docs/
   architecture.md        the same architecture for non-programmers
 ```

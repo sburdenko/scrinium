@@ -1,0 +1,47 @@
+{
+  "description": "Questions about the fictional Steuerberatung Müller & Partner, with what a correct answer must contain and which document it must cite.",
+  "cases": [
+    { "id": "hours-saturday", "question": "Ist die Kanzlei samstags geöffnet?", "language": "de", "expect": "answer", "contains": ["Termin"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "hours-saturday-times", "question": "Von wann bis wann ist samstags geöffnet?", "language": "de", "expect": "answer", "contains": ["10", "13"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "hours-friday", "question": "Bis wann haben Sie freitags geöffnet?", "language": "de", "expect": "answer", "contains": ["13"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "hours-sunday", "question": "Haben Sie sonntags geöffnet?", "language": "de", "expect": "answer", "contains": ["geschlossen"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "hours-christmas", "question": "Ist die Kanzlei zwischen Weihnachten und Neujahr geöffnet?", "language": "de", "expect": "answer", "contains": ["geschlossen"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "contact-phone", "question": "Wie lautet Ihre Telefonnummer?", "language": "de", "expect": "answer", "contains": ["555", "0100"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "contact-address", "question": "Wo finde ich die Kanzlei?", "language": "de", "expect": "answer", "contains": ["Musterstraße", "Bonn"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "contact-parking", "question": "Gibt es Parkplätze für Kunden?", "language": "de", "expect": "answer", "contains": ["Hof"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "contact-accessible", "question": "Ist die Kanzlei barrierefrei?", "language": "de", "expect": "answer", "contains": ["Aufzug"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "first-appointment", "question": "Wie lange dauert ein Ersttermin und was kostet er?", "language": "de", "expect": "answer", "contains": ["45", "kostenlos"], "cites": "oeffnungszeiten-und-kontakt.md" },
+
+    { "id": "price-employee", "question": "Was kostet eine Einkommensteuererklärung für Arbeitnehmer?", "language": "de", "expect": "answer", "contains": ["149"], "cites": "leistungen-und-preise.md" },
+    { "id": "price-freelancer", "question": "Was kostet die Steuererklärung für Selbstständige?", "language": "de", "expect": "answer", "contains": ["290"], "cites": "leistungen-und-preise.md" },
+    { "id": "price-rental", "question": "Was kostet es zusätzlich, wenn ich eine Wohnung vermiete?", "language": "de", "expect": "answer", "contains": ["79"], "cites": "leistungen-und-preise.md" },
+    { "id": "price-payroll", "question": "Wie viel kostet die Lohnabrechnung pro Mitarbeiter?", "language": "de", "expect": "answer", "contains": ["18"], "cites": "leistungen-und-preise.md" },
+    { "id": "price-net", "question": "Sind Ihre Preise brutto oder netto?", "language": "de", "expect": "answer", "contains": ["netto"], "cites": "leistungen-und-preise.md" },
+    { "id": "payment-term", "question": "Innerhalb welcher Frist muss ich eine Rechnung bezahlen?", "language": "de", "expect": "answer", "contains": ["14"], "cites": "leistungen-und-preise.md" },
+
+    { "id": "terms-cancel", "question": "Welche Kündigungsfrist gilt für das Mandat?", "language": "de", "expect": "answer", "contains": ["vier Wochen"], "cites": "mandatsbedingungen.md" },
+    { "id": "terms-liability", "question": "Wie hoch ist die Haftung der Kanzlei begrenzt?", "language": "de", "expect": "answer", "contains": ["1.000.000"], "cites": "mandatsbedingungen.md" },
+    { "id": "terms-retention", "question": "Wie lange bewahren Sie meine Unterlagen auf?", "language": "de", "expect": "answer", "contains": ["zehn"], "cites": "mandatsbedingungen.md" },
+
+    { "id": "faq-deadline", "question": "Bis wann muss ich die Einkommensteuererklärung abgeben?", "language": "de", "expect": "answer", "contains": ["31. Juli"], "cites": "faq-einkommensteuererklaerung.md" },
+    { "id": "faq-duration", "question": "Wie lange dauert die Bearbeitung?", "language": "de", "expect": "answer", "contains": ["zehn Werktage"], "cites": "faq-einkommensteuererklaerung.md" },
+    { "id": "faq-digital", "question": "Kann ich Unterlagen digital einreichen?", "language": "de", "expect": "answer", "contains": ["Mandantenportal"], "cites": "faq-einkommensteuererklaerung.md" },
+    { "id": "faq-home-visit", "question": "Machen Sie Hausbesuche?", "language": "de", "expect": "answer", "contains": ["Video"], "cites": "faq-einkommensteuererklaerung.md" },
+
+    { "id": "privacy-officer", "question": "Wer ist Ihre Datenschutzbeauftragte?", "language": "de", "expect": "answer", "contains": ["Beispiel"], "cites": "datenschutz.md" },
+    { "id": "privacy-location", "question": "Wo werden meine Daten gespeichert?", "language": "de", "expect": "answer", "contains": ["Deutschland"], "cites": "datenschutz.md" },
+
+    { "id": "checklist-id", "question": "Welche Dokumente soll ich zum Ersttermin mitbringen?", "language": "de", "expect": "answer", "contains": ["Personalausweis"], "cites": "unterlagen-checkliste.pdf" },
+
+    { "id": "ru-saturday", "question": "Работаете ли вы по субботам?", "language": "ru", "expect": "answer", "contains": ["10", "13"], "cites": "oeffnungszeiten-und-kontakt.md" },
+    { "id": "ru-cancel", "question": "Какой срок расторжения договора с вами?", "language": "ru", "expect": "answer", "contains": ["недел"], "cites": "mandatsbedingungen.md" },
+    { "id": "en-price", "question": "How much does a tax return for employees cost?", "language": "en", "expect": "answer", "contains": ["149"], "cites": "leistungen-und-preise.md" },
+    { "id": "en-hours", "question": "What time do you open on Monday?", "language": "en", "expect": "answer", "contains": ["8:30"], "cites": "oeffnungszeiten-und-kontakt.md" },
+
+    { "id": "refuse-dog", "question": "Haben Sie einen Hund im Büro?", "expect": "refusal" },
+    { "id": "refuse-capital", "question": "Was ist die Hauptstadt von Australien?", "expect": "refusal" },
+    { "id": "refuse-allowance", "question": "Wie hoch ist der Grundfreibetrag im Jahr 2030?", "expect": "refusal" },
+    { "id": "refuse-salary", "question": "Was verdient Herr Müller im Jahr?", "expect": "refusal" },
+    { "id": "refuse-divorce", "question": "Do you offer legal advice on divorce?", "expect": "refusal" }
+  ]
+}
