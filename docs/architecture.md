@@ -27,6 +27,10 @@ Each part is a separate project in `src/`. A part may use only the parts listed 
 
 `tests/Scrinium.Tests` checks Core with fake models, and runs the Server on a test server, so the whole test run needs no model server.
 
+## How quality is checked
+
+A bot can sound right and be wrong, so the answers are measured. The evaluation tool in `tools/` asks a fixed list of questions about a set of documents and compares each answer with what it must contain, which document it must cite, or that it must decline. The result is a table with the share of correct answers, the share of right sources, whether the bot declined where it should and whether it answered in the visitor's language. Running it again after changing a model, a document or the prompt shows what got better and what got worse before a customer sees it.
+
 ## Rules the code follows
 
 - **One outside library per part.** SQLite lives only in Storage, PdfPig only in Extraction, OllamaSharp only in Ollama, Avalonia only in Desktop and ASP.NET Core only in Server. Replacing one touches one part.
@@ -34,6 +38,7 @@ Each part is a separate project in `src/`. A part may use only the parts listed 
 - **Nothing in Core changes after it is made.** Every Core value is read-only. A test checks that too.
 - **Expected failures are results, not crashes.** A PDF without text, a model server that is off, a cancelled answer: each is shown to the user as a message.
 - **Documents are data, not instructions.** Text from a document reaches the model wrapped in markers and with a standing order not to obey it.
+- **A decline is a signal, not a sentence.** When the passages do not answer the question the model begins its reply with a marker. The application removes the marker, drops the sources and shows the explanation in the language of the question.
 - **The model has the last word on relevance.** Similarity scores only throw out clearly unrelated questions. Whether the passages actually answer the question is decided by the chat model, which is told to say so when they do not.
 
 ## Where the answers get their sources
