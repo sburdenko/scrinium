@@ -11,9 +11,13 @@ Scrinium is a desktop app that indexes your text, Markdown and PDF files and ans
 
 Everything runs on your machine through [Ollama](https://ollama.com). Your documents, the index and the models stay local. The only network connection the app makes is the one to your own Ollama server.
 
+![Two questions and their answers, with the fragments the answers were built from listed under Notes](docs/screenshots/ask.png)
+
+The screenshots show the desktop app on the [Kestrel Analytics demo documents](demo/kestrel-analytics/documents), answered by `qwen3-coder:30b` through Ollama.
+
 ## Highlights
 
-- **Answers with proof.** Citations are `[n]` buttons inside the answer. They open the original at the cited sentence, highlighted, on the right PDF page.
+- **Answers with proof.** Every citation is a small number inside the answer. A click opens the original at the cited sentence, highlighted, on the right PDF page.
 - **Honest when it does not know.** If the documents do not contain an answer, the model is told to say so, and clearly unrelated questions never reach it at all: the app names the closest document and how close it was.
 - **Works across languages.** With a multilingual embedding model, a question in Russian finds a German or English document, and the answer comes back in the language of the question.
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
@@ -33,7 +37,7 @@ ollama pull qwen3-coder:30b   # answers; any instruct model works
 dotnet run --project src/Scrinium.Desktop
 ```
 
-Then press **+ Add** or drop `.txt`, `.md` and `.pdf` files on the window, wait for the green dot next to each file, and ask.
+Then open **Archive**, press **Add files** or drop `.txt`, `.md` and `.pdf` files on the window, wait until each file reads **Ready**, and switch to **Ask**.
 
 If Ollama is not running or a model is missing, the banner at the top offers **Start Ollama** and **Download models**.
 
@@ -51,16 +55,21 @@ Open <http://localhost:5088> for the chat page. Files in the documents folder ar
 
 | You want to | Do this |
 |---|---|
-| Add documents | **+ Add** or drag and drop files onto the window |
-| Ask something | Type in the box at the bottom, **Enter** sends, **Shift+Enter** adds a line |
-| Check a claim | Click the `[n]` in the answer or a card under **Sources** |
-| Read the original | The right panel opens at the cited sentence; **Open file** launches the file itself |
-| Find a document | Type in **Filter by name** above the list |
-| Retry a failed file | The retry arrow on the file, or **Retry all failures** |
+| Add documents | **Archive**, then **Add files**, or drag and drop files onto the window |
+| Ask something | Type in the box at the bottom of **Ask**, **Enter** sends, **Shift+Enter** adds a line |
+| See what an answer was built from | The **Notes** column lists the retrieved fragments; the ones the answer cites are bright |
+| Check a claim | Click the number in the answer or a note. The **Original** panel opens at the cited sentence |
+| Read the whole file | **Open file** in the Original panel launches it |
+| Find a document | Type in **Filter by name** in the Archive |
+| Retry a failed file | The retry arrow on the file, or **Retry failures**. A red badge on the Archive tab counts failures |
 | Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
 | Start over | **New chat** |
 
-The window follows the system light or dark theme.
+The window uses one dark palette. The app icon is a pair of brackets around a one: a citation.
+
+![The Original panel open on the sentence an answer cites, with the other cited fragments one click away](docs/screenshots/original.png)
+
+![The Archive: every document with its type, date and state](docs/screenshots/archive.png)
 
 ## HTTP API
 
@@ -257,7 +266,7 @@ flowchart TB
 | `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
 | `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
 | `Scrinium.Ollama` | Ollama client registration, status check, model pull | OllamaSharp |
-| `Scrinium.Desktop` | Sources, chat, original preview, settings, Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
+| `Scrinium.Desktop` | Ask and Archive views, notes, original preview, settings, Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
 | `Scrinium.Server` | Chat, source preview, document list and health endpoints, the chat page, limits | ASP.NET Core |
 | `tests/Scrinium.Tests` | Unit, architecture, composition and server tests with fake models | xunit |
 
