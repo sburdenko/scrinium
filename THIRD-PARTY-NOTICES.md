@@ -11,6 +11,7 @@ Scrinium is licensed under the MIT license (see `LICENSE`). It uses the followin
 | [PdfPig](https://github.com/UglyToad/PdfPig) | reading text from PDF files | Apache License 2.0 |
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) and SQLite | the local database | MIT; SQLite is in the public domain |
 | [Microsoft.Extensions.AI](https://github.com/dotnet/extensions), Hosting, DependencyInjection | model abstractions and composition | MIT |
+| [ASP.NET Core](https://github.com/dotnet/aspnetcore) | the HTTP server | MIT |
 
 ## Models
 
