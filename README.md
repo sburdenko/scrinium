@@ -64,13 +64,36 @@ Set the `SCRINIUM_DATA` environment variable to use a different data folder. Cop
 
 Similarity scores from `bge-m3` are not a reliable relevance verdict: on a corpus of documents about one person, relevant and irrelevant questions both land between 0.4 and 0.55. The `0.35` threshold only discards clearly unrelated queries; whether the fragments answer the question is decided by the chat model. The values live in `RetrievalOptions` and depend on the embedding model.
 
-## Project layout
+## Architecture
 
-| Project | Contents |
-|---|---|
-| `src/Scrinium.Core` | Extraction, chunking, storage, ingestion queue, retrieval, answering. No UI; talks to models only through `Microsoft.Extensions.AI` (`IChatClient`, `IEmbeddingGenerator`) |
-| `src/Scrinium.Desktop` | Avalonia 12 desktop app (MVVM): sources list, chat with citations, original preview, settings, Ollama status banner. Ollama is wired in here |
-| `tests/Scrinium.Tests` | xUnit tests on Core, using fake models, so they run without Ollama |
+Every project does one job and references only what that job needs. `ArchitectureTests` checks these edges on every build. For a plain-language tour and a glossary, see [docs/architecture.md](docs/architecture.md).
+
+```
+              ┌───────────────────────┐
+              │   Scrinium.Desktop    │
+              │  Avalonia UI, Ollama  │
+              └───────────┬───────────┘
+        ┌─────────────────┴─────────────────┐
+┌───────┴───────────────┐       ┌───────────┴───────────┐
+│   Scrinium.Storage    │       │  Scrinium.Extraction  │
+│  documents, vectors   │       │     txt, md, pdf      │
+│      [ SQLite ]       │       │      [ PdfPig ]       │
+└───────┬───────────────┘       └───────────┬───────────┘
+        └─────────────────┬─────────────────┘
+              ┌───────────┴───────────┐
+              │     Scrinium.Core     │
+              │  chunking, retrieval, │
+              │  prompt, answering    │
+              └───────────────────────┘
+```
+
+| Project | Job | Key library |
+|---|---|---|
+| `Scrinium.Core` | Records and interfaces, chunking, ingestion queue, retrieval, passage location, prompt, answering. Talks to models only through `IChatClient` and `IEmbeddingGenerator` | Microsoft.Extensions.AI |
+| `Scrinium.Storage` | SQLite document and vector store | Microsoft.Data.Sqlite |
+| `Scrinium.Extraction` | Text and PDF extractors | PdfPig |
+| `Scrinium.Desktop` | Sources, chat with citations, original preview, settings, Ollama status banner | Avalonia, OllamaSharp |
+| `tests/Scrinium.Tests` | xUnit tests with fake models, so they run without Ollama; architecture and composition tests | xunit |
 
 ```bash
 dotnet test tests/Scrinium.Tests
