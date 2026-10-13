@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             x:Class="Scrinium.Desktop.Views.NotesView"
+             x:DataType="vm:ChatViewModel"
+             x:Name="Root">
+  <Border BorderBrush="{DynamicResource Line}" BorderThickness="2,0,0,0" Padding="24,40,24,24">
+    <Grid RowDefinitions="Auto,*">
+      <TextBlock Classes="label" Text="NOTES" Margin="0,0,0,12" />
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding FocusedMessage.Citations}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CitationViewModel">
+              <Button Classes="row" Classes.active="{Binding IsActive}" Classes.uncited="{Binding IsUncited}"
+                      Command="{Binding #Root.((vm:ChatViewModel)DataContext).OpenCitationCommand}"
+                      CommandParameter="{Binding}">
+                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,14">
+                  <Grid ColumnDefinitions="36,*" ColumnSpacing="8">
+                    <TextBlock Text="{Binding Number}" FontSize="28" FontWeight="ExtraBold" LineHeight="28"
+                               Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Spacing="3">
+                      <TextBlock Text="{Binding DocumentTitle}" FontSize="13" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Meta}" Classes="muted small" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Preview}" FontSize="13" LineHeight="19" MaxLines="3"
+                                 TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</UserControl>

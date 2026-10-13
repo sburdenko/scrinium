@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Scrinium.Core.Documents;
 using Scrinium.Core.Ingestion;
 using Scrinium.Core.Preview;
 using Scrinium.Core.Settings;
@@ -15,47 +14,73 @@ public sealed partial class PanelHost(
     OllamaMonitor monitor,
     DataPaths paths) : ObservableObject
 {
+    private PreviewPanelViewModel? _lastPreview;
+    private RightPanelViewModel? _underSettings;
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOpen))]
+    [NotifyPropertyChangedFor(nameof(IsOpen), nameof(IsCollapsed))]
     private RightPanelViewModel? _current;
 
     public bool IsOpen => Current is not null;
 
-    public async Task ShowPreviewAsync(SourceLocation location, string fallbackTitle)
+    public bool IsCollapsed => Current is null;
+
+    public bool CanReopen => _lastPreview is not null;
+
+    public async Task ShowPreviewAsync(PreviewRequest request)
     {
         DocumentPreview? preview = null;
         try
         {
-            preview = await previews.LoadAsync(location);
+            preview = await previews.LoadAsync(request.Location);
         }
         catch (Exception ex) when (ex is IOException or Core.Extraction.TextExtractionException)
         {
             preview = null;
         }
 
-        Open(new PreviewPanelViewModel(preview, fallbackTitle));
+        var panel = new PreviewPanelViewModel(
+            preview,
+            request,
+            citation => ShowPreviewAsync(PreviewRequest.For(citation, request.Citations)));
+
+        panel.CloseRequested += Close;
+        _underSettings = null;
+        _lastPreview = panel;
+        OnPropertyChanged(nameof(CanReopen));
+        Current = panel;
     }
 
     public void ShowSettings()
     {
         if (Current is SettingsPanelViewModel)
+        {
             Close();
-        else
-            OpenSettings();
-    }
+            return;
+        }
 
-    private void OpenSettings()
-    {
         var panel = new SettingsPanelViewModel(settings, library, monitor, paths.Root);
-        Open(panel);
+        panel.CloseRequested += Close;
+        _underSettings = Current;
+        Current = panel;
         _ = panel.RefreshModelsAsync();
     }
 
-    public void Close() => Current = null;
-
-    private void Open(RightPanelViewModel panel)
+    public void Close()
     {
-        panel.CloseRequested += Close;
-        Current = panel;
+        if (Current is SettingsPanelViewModel)
+        {
+            Current = _underSettings;
+            _underSettings = null;
+            return;
+        }
+
+        Current = null;
+    }
+
+    public void Expand()
+    {
+        if (_lastPreview is not null)
+            Current = _lastPreview;
     }
 }

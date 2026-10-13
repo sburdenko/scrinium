@@ -42,6 +42,9 @@ public sealed partial class SourcesViewModel : ObservableObject
     private bool _hasFailed;
 
     [ObservableProperty]
+    private int _failedCount;
+
+    [ObservableProperty]
     private string _lastError = "";
 
     partial void OnFilterChanged(string value) => Rebuild();
@@ -95,7 +98,7 @@ public sealed partial class SourcesViewModel : ObservableObject
 
     [RelayCommand]
     private Task OpenAsync(SourceItemViewModel item) =>
-        _panel.ShowPreviewAsync(SourceLocation.Start(item.Id), item.Title);
+        _panel.ShowPreviewAsync(PreviewRequest.ForDocument(item.Id, item.Title));
 
     [RelayCommand]
     private void DismissError() => LastError = "";
@@ -131,13 +134,10 @@ public sealed partial class SourcesViewModel : ObservableObject
             Items.Add(item);
 
         IsEmpty = _documents.Count == 0;
-        HasFailed = _documents.Any(d => d.State is IndexState.Failed);
+        FailedCount = _documents.Count(d => d.State is IndexState.Failed);
+        HasFailed = FailedCount > 0;
 
-        var indexing = _documents.Count(d => d.State is IndexState.Pending or IndexState.Indexing);
-        Summary = _documents.Count == 0
-            ? ""
-            : indexing > 0
-                ? $"{_documents.Count} documents · indexing {indexing}"
-                : $"{_documents.Count} documents";
+        var noun = _documents.Count == 1 ? "document" : "documents";
+        Summary = $"{_documents.Count} {noun} · stays on this computer · {model}";
     }
 }

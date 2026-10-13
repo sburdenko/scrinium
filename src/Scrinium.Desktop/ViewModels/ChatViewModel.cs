@@ -5,9 +5,25 @@ using Scrinium.Core.Chat;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel) : ObservableObject
+public sealed partial class ChatViewModel : ObservableObject
 {
+    private readonly AnswerService _answers;
+    private readonly PanelHost _panel;
     private CancellationTokenSource? _cts;
+
+    public ChatViewModel(AnswerService answers, PanelHost panel)
+    {
+        _answers = answers;
+        _panel = panel;
+        panel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PanelHost.Current))
+                SyncActiveCitation();
+        };
+    }
+
+    [ObservableProperty]
+    private ChatMessageViewModel? _focusedMessage;
 
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
 
@@ -46,9 +62,10 @@ public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel
             .Select(m => m.IsUser ? ChatTurn.User(m.Text) : ChatTurn.Assistant(m.Text))
             .ToList();
 
-        Messages.Add(ChatMessageViewModel.FromUser(question));
+        Messages.Add(ChatMessageViewModel.FromUser(question, ruleAbove: Messages.Count > 0));
         var reply = ChatMessageViewModel.NewAssistant();
         Messages.Add(reply);
+        FocusedMessage = reply;
         OnPropertyChanged(nameof(IsEmpty));
         ScrollRequested?.Invoke();
 
@@ -56,7 +73,7 @@ public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel
         IsBusy = true;
         try
         {
-            await foreach (var answerEvent in answers.AskAsync(question, history, _cts.Token))
+            await foreach (var answerEvent in _answers.AskAsync(question, history, _cts.Token))
             {
                 switch (answerEvent)
                 {
@@ -101,6 +118,7 @@ public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel
     {
         _cts?.Cancel();
         Messages.Clear();
+        FocusedMessage = null;
         OnPropertyChanged(nameof(IsEmpty));
     }
 
@@ -108,10 +126,54 @@ public sealed partial class ChatViewModel(AnswerService answers, PanelHost panel
     private void UseSuggestion(string suggestion) => Input = suggestion;
 
     [RelayCommand]
+    private void FocusMessage(ChatMessageViewModel? message)
+    {
+        if (message is { IsAssistant: true })
+            FocusedMessage = message;
+    }
+
+    [RelayCommand]
     private async Task OpenCitationAsync(CitationViewModel? citation)
     {
-        if (citation is not null)
-            await panel.ShowPreviewAsync(citation.Location, citation.DocumentTitle);
+        if (citation is null)
+            return;
+
+        var owner = OwnerOf(citation) ?? FocusedMessage;
+        var siblings = owner?.Citations.ToList() ?? [citation];
+        await _panel.ShowPreviewAsync(PreviewRequest.For(citation, siblings));
+    }
+
+    [RelayCommand]
+    private async Task ExpandOriginalAsync()
+    {
+        if (_panel.CanReopen)
+        {
+            _panel.Expand();
+            return;
+        }
+
+        var first = FocusedMessage?.Citations.FirstOrDefault();
+        if (first is not null)
+            await OpenCitationAsync(first);
+    }
+
+    private ChatMessageViewModel? OwnerOf(CitationViewModel citation) =>
+        Messages.FirstOrDefault(m => m.Citations.Contains(citation));
+
+    private void SyncActiveCitation()
+    {
+        foreach (var message in Messages)
+            message.ActiveCitationNumber = null;
+
+        if (_panel.Current is not PreviewPanelViewModel { Number: { } number } preview)
+            return;
+
+        var owner = preview.Citations.Count > 0 ? OwnerOf(preview.Citations[0]) : null;
+        if (owner is null)
+            return;
+
+        owner.ActiveCitationNumber = number;
+        FocusedMessage = owner;
     }
 
     private static string Humanize(Exception ex) => ex switch
