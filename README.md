@@ -19,7 +19,8 @@ Everything runs on your machine through [Ollama](https://ollama.com). Your docum
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
-- **Small, enforced architecture.** Four projects, one outside library each, and tests that fail when a dependency points the wrong way.
+- **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
+- **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
 
 ## Quick start
 
@@ -35,6 +36,16 @@ Then press **+ Add** or drop `.txt`, `.md` and `.pdf` files on the window, wait 
 
 If Ollama is not running or a model is missing, the banner at the top offers **Start Ollama** and **Download models**.
 
+### Or run the server
+
+```bash
+dotnet run --project src/Scrinium.Server -- \
+  --urls http://localhost:5088 \
+  --Scrinium:DocumentsFolder=/path/to/your/documents
+```
+
+Open <http://localhost:5088> for the chat page. Files in the documents folder are indexed at startup.
+
 ## Using it
 
 | You want to | Do this |
@@ -49,6 +60,56 @@ If Ollama is not running or a model is missing, the banner at the top offers **S
 | Start over | **New chat** |
 
 The window follows the system light or dark theme.
+
+## HTTP API
+
+`Scrinium.Server` exposes the same answering over HTTP. It keeps no sessions: the client sends the recent messages with every question.
+
+| Request | Purpose |
+|---|---|
+| `POST /api/chat` | Ask a question; the answer streams back as server-sent events |
+| `GET /api/sources/{documentId}?page=&offset=&length=` | The cited passage with its surrounding text, for the page's source panel |
+| `GET /api/documents` | Documents and their indexing state; needs the `X-Api-Key` header |
+| `GET /api/health` | Document counts and the state of the model server |
+| `GET /` | The chat page |
+
+```http
+POST /api/chat
+Content-Type: application/json
+
+{ "question": "When are you open on Saturdays?",
+  "history": [ { "role": "user", "text": "…" }, { "role": "assistant", "text": "…" } ] }
+```
+
+```
+event: sources
+data: [{"number":1,"documentId":"…","title":"opening-hours.md","page":null,"date":"2026-10-13","preview":"On Saturdays we are open from 10:00 to 13:00.","offset":73,"length":45}]
+
+event: delta
+data: "We are open from 10:00 to 13:00 on Saturdays [1]."
+
+event: done
+data: {}
+```
+
+A question the documents cannot answer returns an empty `sources` list and one `delta` that explains why, without calling the model. A failure while streaming arrives as an `error` event.
+
+### Configuration
+
+Set values on the command line (`--Scrinium:ChatModel=gemma3:12b`) or as environment variables (`Scrinium__ChatModel`).
+
+| Key | Meaning | Default |
+|---|---|---|
+| `Home` | Folder for the database, originals and settings | `scrinium` |
+| `DocumentsFolder` | Folder whose files are indexed at startup | none |
+| `OllamaUrl`, `ChatModel`, `EmbeddingModel` | Override the saved settings | from `settings.json` |
+| `ApiKey` | Enables `GET /api/documents`; without it the endpoint answers 403 | none |
+| `AllowedOrigins` | Origins allowed to call the API from a browser | none (same origin only) |
+| `ChatRequestsPerMinute` | Limit per client address | 10 |
+| `MaxConcurrentChats` | Answers generated at the same time | 2 |
+| `MaxQuestionLength`, `MaxHistoryItems` | Request limits | 2000, 20 |
+
+The page is served with a content security policy and renders answers as plain text. Behind a reverse proxy on the same host, `X-Forwarded-For` is honoured so limits apply per visitor.
 
 ## How an answer is made
 
@@ -122,14 +183,20 @@ Pending and interrupted documents are queued again at startup. Deleting a docume
 
 ```mermaid
 flowchart TB
-    Desktop["<b>Scrinium.Desktop</b><br/>Avalonia UI · Ollama client · composition"]
+    Desktop["<b>Scrinium.Desktop</b><br/>Avalonia UI · local Ollama launcher"]
+    Server["<b>Scrinium.Server</b><br/>ASP.NET Core API · chat page"]
+    Ollama["<b>Scrinium.Ollama</b><br/>Ollama client · status · model pull"]
     Storage["<b>Scrinium.Storage</b><br/>SQLite document and vector store"]
     Extraction["<b>Scrinium.Extraction</b><br/>text and PDF extractors"]
     Core["<b>Scrinium.Core</b><br/>chunking · ingestion · retrieval · prompt · answering"]
 
+    Desktop --> Ollama
     Desktop --> Storage
     Desktop --> Extraction
-    Desktop --> Core
+    Server --> Ollama
+    Server --> Storage
+    Server --> Extraction
+    Ollama --> Core
     Storage --> Core
     Extraction --> Core
 ```
@@ -139,19 +206,21 @@ flowchart TB
 | `Scrinium.Core` | Records and interfaces, chunking, the ingestion queue, retrieval, passage location, prompt building, answering. Depends on nothing else in the solution | Microsoft.Extensions.AI (interfaces only) |
 | `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
 | `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
-| `Scrinium.Desktop` | Sources, chat, original preview, settings, Ollama status. The only project that knows about Ollama and the UI toolkit | Avalonia, OllamaSharp |
-| `tests/Scrinium.Tests` | Unit, architecture and composition tests with fake models | xunit |
+| `Scrinium.Ollama` | Ollama client registration, status check, model pull | OllamaSharp |
+| `Scrinium.Desktop` | Sources, chat, original preview, settings, Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
+| `Scrinium.Server` | Chat, source preview, document list and health endpoints, the chat page, limits | ASP.NET Core |
+| `tests/Scrinium.Tests` | Unit, architecture, composition and server tests with fake models | xunit |
 
 ### Rules the code follows
 
 These are checked by `ArchitectureTests` on every build, not left to review:
 
-- Core references no other project in the solution; Storage and Extraction reference only Core.
-- SQLite, PdfPig, Avalonia and OllamaSharp each appear in exactly one project, so replacing one touches one project.
+- Core references no other project in the solution; Storage, Extraction and Ollama reference only Core; Desktop and Server compose them.
+- SQLite, PdfPig, OllamaSharp, Avalonia and ASP.NET Core each appear in exactly one project, so replacing one touches one project.
 - Core models outcomes as states (`IndexState`, `RetrievalOutcome`, `ModelCatalog`, `AnswerEvent`) and has no boolean flags.
 - Core values are immutable.
 
-`CompositionTests` build the real service registration with fake models to prove that the pieces add up to a working app. For a plain-language tour and a glossary, see [docs/architecture.md](docs/architecture.md).
+`CompositionTests` build the real service registration with fake models to prove that the pieces add up to a working app, and `ServerTests` run the whole HTTP application on a test server. For a plain-language tour and a glossary, see [docs/architecture.md](docs/architecture.md).
 
 ## Details
 
@@ -190,7 +259,9 @@ src/
   Scrinium.Core/         records, chunking, ingestion, retrieval, prompt, answering
   Scrinium.Storage/      SQLite stores
   Scrinium.Extraction/   text and PDF extractors
+  Scrinium.Ollama/       Ollama client, status, model pull
   Scrinium.Desktop/      Avalonia app
+  Scrinium.Server/       ASP.NET Core API and chat page
 tests/
   Scrinium.Tests/        unit, architecture and composition tests
 docs/
