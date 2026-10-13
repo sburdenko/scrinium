@@ -59,4 +59,22 @@ public class PromptBuilderTests
 
         Assert.DoesNotContain("Cyrillic", prompt);
     }
+
+    [Fact]
+    public void The_system_prompt_explains_the_decline_marker()
+    {
+        var prompt = SystemPrompt("question", Fragment(1));
+
+        Assert.Contains(PromptBuilder.DeclineMarker, prompt);
+    }
+
+    [Fact]
+    public void The_question_is_followed_by_a_language_reminder()
+    {
+        var messages = PromptBuilder.Build("Wann haben Sie geöffnet?", [Fragment(1)], []);
+
+        var last = messages[^1].Text!;
+        Assert.StartsWith("Wann haben Sie geöffnet?", last);
+        Assert.Contains("language of the question", last);
+    }
 }

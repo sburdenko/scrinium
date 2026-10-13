@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.Extensions.AI;
 using Scrinium.Core.Retrieval;
 using Scrinium.Core.Settings;
@@ -31,11 +32,57 @@ public sealed class AnswerService(
         var messages = PromptBuilder.Build(question, found.Fragments, history);
         var options = new ChatOptions { ModelId = settings.Current.ChatModel, Temperature = Temperature };
 
+        var pending = new StringBuilder();
+        var decided = false;
+        var declined = false;
+        var declinedText = false;
+
         await foreach (var update in chat.GetStreamingResponseAsync(messages, options, ct))
         {
-            if (!string.IsNullOrEmpty(update.Text))
-                yield return new AnswerEvent.TextDelta(update.Text);
+            var text = update.Text;
+            if (string.IsNullOrEmpty(text))
+                continue;
+
+            if (decided)
+            {
+                var delta = declined && !declinedText ? text.TrimStart() : text;
+                if (delta.Length == 0)
+                    continue;
+
+                declinedText |= declined;
+                yield return new AnswerEvent.TextDelta(delta);
+                continue;
+            }
+
+            pending.Append(text);
+            var head = pending.ToString().TrimStart();
+
+            if (head.StartsWith(PromptBuilder.DeclineMarker, StringComparison.Ordinal))
+            {
+                decided = declined = true;
+                yield return new AnswerEvent.SourcesFound([]);
+
+                var explanation = head[PromptBuilder.DeclineMarker.Length..].TrimStart();
+                if (explanation.Length > 0)
+                {
+                    declinedText = true;
+                    yield return new AnswerEvent.TextDelta(explanation);
+                }
+
+                continue;
+            }
+
+            if (PromptBuilder.DeclineMarker.StartsWith(head, StringComparison.Ordinal))
+                continue;
+
+            decided = true;
+            yield return new AnswerEvent.TextDelta(pending.ToString());
         }
+
+        if (!decided && pending.Length > 0)
+            yield return new AnswerEvent.TextDelta(pending.ToString());
+        else if (declined && !declinedText)
+            yield return new AnswerEvent.TextDelta(PromptBuilder.DeclinedMessage);
     }
 
     private static string Explain(RetrievalOutcome outcome) => outcome switch
