@@ -1,0 +1,11 @@
+Datenexport bei Kestrel Analytics - Hinweise für Kunden
+
+Sie können Ihre Daten jederzeit als CSV-Datei exportieren. Gehen Sie dazu im Dashboard auf Einstellungen und dann auf Export.
+
+Im Free-Tarif ist der Export auf 10.000 Zeilen pro Export begrenzt. In den bezahlten Tarifen gibt es keine Zeilengrenze.
+
+Große Exporte mit mehr als 1.000.000 Zeilen werden im Hintergrund erstellt. Sobald der Export fertig ist, erhalten Sie eine E-Mail mit einem Download-Link. Der Link ist 7 Tage gültig und kann nur von angemeldeten Mitgliedern Ihres Kontos geöffnet werden.
+
+Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren. Danach werden die Daten gelöscht.
+
+Bei Fragen zum Export schreiben Sie uns an support@kestrel.example.
