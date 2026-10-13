@@ -1,35 +1,29 @@
 # Scrinium
 
-A local "second brain": add your text, Markdown and PDF files, then ask questions in plain language.
-Every answer comes with links to the exact passages it was built from.
+[![CI](https://github.com/sburdenko/scrinium/actions/workflows/ci.yml/badge.svg)](https://github.com/sburdenko/scrinium/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
+![Avalonia 12](https://img.shields.io/badge/UI-Avalonia%2012-8B44AC)
 
-Everything runs on your machine. Documents, the index and the models stay local; the only network
-connection the app makes is to your own Ollama server.
+**Ask your own documents questions in plain language and get answers you can verify.**
 
-## What it does
+Scrinium is a desktop app that indexes your text, Markdown and PDF files and answers questions about them with a local language model. Every claim in an answer carries a numbered citation; a click opens the original, scrolled to the exact sentence the answer came from.
 
-1. **Add documents.** `.txt`, `.md` and `.pdf` files, via the "Add" button or drag-and-drop. Originals are copied into the app's data folder.
-2. **Index them.** Each file is split into chunks and every chunk is embedded by a local model. Progress and failures are visible per document, and failed ones can be retried.
-3. **Ask a question.** The question is embedded the same way and compared with all chunks.
-4. **Get a grounded answer.** The most relevant passages are given to a local chat model, which answers only from them and marks every claim with `[n]`.
-5. **Check the source.** Clicking a `[n]` marker or a source card opens the original text, scrolled to the sentence or list item that best matches the question and highlighted (for PDFs, on the right page).
+Everything runs on your machine through [Ollama](https://ollama.com). Your documents, the index and the models stay local. The only network connection the app makes is the one to your own Ollama server.
 
-### Answers are honest about what they know
+## Highlights
 
-- If the model finds no supporting fragment, it says so instead of guessing.
-- If nothing in the archive is even loosely related (similarity below 0.35), the app says so, names the closest document and its similarity, and does not call the chat model at all.
-- If nothing is indexed yet, it says that instead.
-- Under each answer, sources the model actually cited are listed first; other retrieved fragments are shown dimmed.
-- Document text is handed to the model as quoted data, not as instructions.
+- **Answers with proof.** Citations are `[n]` buttons inside the answer. They open the original at the cited sentence, highlighted, on the right PDF page.
+- **Honest when it does not know.** If the documents do not contain an answer, the model is told to say so, and clearly unrelated questions never reach it at all: the app names the closest document and how close it was.
+- **Works across languages.** With a multilingual embedding model, a question in Russian finds a German or English document, and the answer comes back in the language of the question.
+- **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
+- **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
+- **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
+- **Small, enforced architecture.** Four projects, one outside library each, and tests that fail when a dependency points the wrong way.
 
-## Requirements
+## Quick start
 
-- .NET 10 SDK
-- [Ollama](https://ollama.com) with an embedding model and a chat model
-
-Developed and tested on macOS (Apple Silicon). Windows and Linux are not tested.
-
-## Run
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Ollama](https://ollama.com).
 
 ```bash
 ollama pull bge-m3            # multilingual embeddings
@@ -37,11 +31,142 @@ ollama pull qwen3-coder:30b   # answers; any instruct model works
 dotnet run --project src/Scrinium.Desktop
 ```
 
-If Ollama is not running, or a model is missing, a banner at the top of the window offers to start Ollama or download the missing models.
+Then press **+ Add** or drop `.txt`, `.md` and `.pdf` files on the window, wait for the green dot next to each file, and ask.
 
-Model names and the Ollama address are configurable in the Settings panel. Changing the embedding model requires reindexing: documents indexed with another model are marked as such and are skipped by search until reindexed ("Reindex everything" in Settings).
+If Ollama is not running or a model is missing, the banner at the top offers **Start Ollama** and **Download models**.
 
-## Data
+## Using it
+
+| You want to | Do this |
+|---|---|
+| Add documents | **+ Add** or drag and drop files onto the window |
+| Ask something | Type in the box at the bottom, **Enter** sends, **Shift+Enter** adds a line |
+| Check a claim | Click the `[n]` in the answer or a card under **Sources** |
+| Read the original | The right panel opens at the cited sentence; **Open file** launches the file itself |
+| Find a document | Type in **Filter by name** above the list |
+| Retry a failed file | The retry arrow on the file, or **Retry all failures** |
+| Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
+| Start over | **New chat** |
+
+The window follows the system light or dark theme.
+
+## How an answer is made
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant UI as Desktop
+    participant Core as Core
+    participant Emb as Embedding model
+    participant DB as SQLite
+    participant LLM as Chat model
+
+    You->>UI: question
+    UI->>Core: ask(question, last 6 messages)
+    Core->>Emb: embed the question
+    Core->>DB: nearest chunks
+    DB-->>Core: top 6 with similarity scores
+    Core->>Emb: embed the sentences inside the hits
+    Note over Core: keep hits ≥ 0.35 and within 0.10 of the best,<br/>pick the closest sentence in each
+    alt nothing close enough
+        Core-->>UI: closest document and its similarity (no model call)
+    else
+        Core->>LLM: prompt with fragments numbered 1 to N
+        LLM-->>UI: answer streamed with [n] markers
+    end
+    UI-->>You: answer, cited sources, click to open the original
+```
+
+Similarity scores only throw out clearly unrelated questions. Scores of relevant and irrelevant questions overlap on a corpus about one person (both land between roughly 0.4 and 0.55 with `bge-m3`), so whether the fragments really answer the question is decided by the chat model, which is told to cite only fragments that support its answer and to say so when none do.
+
+### Three outcomes, not a flag
+
+A search returns exactly one of three results, and the window explains each one differently:
+
+```mermaid
+flowchart TD
+    Q([Question]) --> S[Search the nearest chunks]
+    S -->|nothing indexed with this model| E["ArchiveEmpty<br/>add documents first"]
+    S --> F{best similarity ≥ 0.35}
+    F -->|no| N["NothingRelevant<br/>closest document and its similarity"]
+    F -->|yes| K[Keep hits within 0.10 of the best]
+    K --> P["Found<br/>numbered fragments with citations"]
+```
+
+### What happens to a file
+
+```mermaid
+flowchart LR
+    A[File added] --> B[Original copied<br/>into the data folder]
+    B --> C[Text extracted<br/>per page for PDF]
+    C --> D[Cut into chunks<br/>headings, paragraphs, sentences]
+    D --> E[Embedded<br/>in batches of 32]
+    E --> F[(One SQLite transaction<br/>chunks, vectors, state)]
+```
+
+A document is always in exactly one state:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: file added
+    Pending --> Indexing: picked up by the worker
+    Indexing --> Ready: chunks and vectors stored
+    Indexing --> Failed: reason kept
+    Failed --> Pending: retry
+    Ready --> Pending: reindex
+```
+
+Pending and interrupted documents are queued again at startup. Deleting a document removes its original, chunks and vectors in one transaction.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    Desktop["<b>Scrinium.Desktop</b><br/>Avalonia UI · Ollama client · composition"]
+    Storage["<b>Scrinium.Storage</b><br/>SQLite document and vector store"]
+    Extraction["<b>Scrinium.Extraction</b><br/>text and PDF extractors"]
+    Core["<b>Scrinium.Core</b><br/>chunking · ingestion · retrieval · prompt · answering"]
+
+    Desktop --> Storage
+    Desktop --> Extraction
+    Desktop --> Core
+    Storage --> Core
+    Extraction --> Core
+```
+
+| Project | Job | Outside library |
+|---|---|---|
+| `Scrinium.Core` | Records and interfaces, chunking, the ingestion queue, retrieval, passage location, prompt building, answering. Depends on nothing else in the solution | Microsoft.Extensions.AI (interfaces only) |
+| `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
+| `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
+| `Scrinium.Desktop` | Sources, chat, original preview, settings, Ollama status. The only project that knows about Ollama and the UI toolkit | Avalonia, OllamaSharp |
+| `tests/Scrinium.Tests` | Unit, architecture and composition tests with fake models | xunit |
+
+### Rules the code follows
+
+These are checked by `ArchitectureTests` on every build, not left to review:
+
+- Core references no other project in the solution; Storage and Extraction reference only Core.
+- SQLite, PdfPig, Avalonia and OllamaSharp each appear in exactly one project, so replacing one touches one project.
+- Core models outcomes as states (`IndexState`, `RetrievalOutcome`, `ModelCatalog`, `AnswerEvent`) and has no boolean flags.
+- Core values are immutable.
+
+`CompositionTests` build the real service registration with fake models to prove that the pieces add up to a working app. For a plain-language tour and a glossary, see [docs/architecture.md](docs/architecture.md).
+
+## Details
+
+| Step | Behaviour |
+|---|---|
+| Extraction | `.txt` and `.md` read as UTF-8. PDFs are read page by page with PdfPig; a PDF without a text layer fails with a clear message |
+| Chunking | Recursive: headings, blank lines, sentences, words. About 400 tokens per chunk with 50 tokens of overlap. Every chunk keeps its page and character offset |
+| Embeddings | Batches of 32 through `IEmbeddingGenerator`. The model name is stored per document, and search only uses documents indexed with the current model |
+| Storage | One SQLite file. Vectors are normalized `float32` blobs compared by cosine similarity |
+| Retrieval | Top 6 chunks, similarity at least 0.35 and within 0.10 of the best. Neighbouring chunks are added to the context up to about 3000 tokens |
+| Citations | The sentence closest to the question inside each hit. A line wrap inside a PDF sentence does not split it; list items and lines ending in punctuation do |
+| Answering | Last 6 messages plus the numbered fragments go to `IChatClient`; the reply is streamed |
+| Models | Default `bge-m3` for embeddings and `qwen3-coder:30b` for answers; both are chosen in Settings |
+
+### Data
 
 | What | Where (macOS) |
 |---|---|
@@ -49,63 +174,29 @@ Model names and the Ollama address are configurable in the Settings panel. Chang
 | Original files | `~/Library/Application Support/Scrinium/data/originals/<year>/<month>/` |
 | Settings | `~/Library/Application Support/Scrinium/settings.json` |
 
-Set the `SCRINIUM_DATA` environment variable to use a different data folder. Copying the `data` folder is a complete backup.
+Set the `SCRINIUM_DATA` environment variable to use another data folder. Copying the `data` folder is a complete backup.
 
-## How it works
-
-| Step | Behaviour |
-|---|---|
-| Text extraction | `.txt`/`.md` read as UTF-8; PDFs read page by page with PdfPig (text layer only) |
-| Chunking | Recursive: headings, blank lines, then sentences; about 400 tokens per chunk with 50 tokens of overlap. Each chunk keeps its page and character offset |
-| Embeddings | Batches of 32 through `IEmbeddingGenerator`; the model name is stored per document |
-| Storage | One SQLite file. Vectors are stored as normalized `float32` blobs and compared by cosine similarity in C# |
-| Retrieval | Top 6 chunks; a hit must score at least `0.35` and within `0.10` of the best hit. The neighbouring chunks before and after each hit are added to the context, up to about 3000 tokens |
-| Answering | Last 6 chat messages plus the fragments go to `IChatClient`; the reply is streamed |
-
-Similarity scores from `bge-m3` are not a reliable relevance verdict: on a corpus of documents about one person, relevant and irrelevant questions both land between 0.4 and 0.55. The `0.35` threshold only discards clearly unrelated queries; whether the fragments answer the question is decided by the chat model. The values live in `RetrievalOptions` and depend on the embedding model.
-
-## Architecture
-
-Every project does one job and references only what that job needs. `ArchitectureTests` checks these edges on every build. For a plain-language tour and a glossary, see [docs/architecture.md](docs/architecture.md).
-
-```
-              ┌───────────────────────┐
-              │   Scrinium.Desktop    │
-              │  Avalonia UI, Ollama  │
-              └───────────┬───────────┘
-        ┌─────────────────┴─────────────────┐
-┌───────┴───────────────┐       ┌───────────┴───────────┐
-│   Scrinium.Storage    │       │  Scrinium.Extraction  │
-│  documents, vectors   │       │     txt, md, pdf      │
-│      [ SQLite ]       │       │      [ PdfPig ]       │
-└───────┬───────────────┘       └───────────┬───────────┘
-        └─────────────────┬─────────────────┘
-              ┌───────────┴───────────┐
-              │     Scrinium.Core     │
-              │  chunking, retrieval, │
-              │  prompt, answering    │
-              └───────────────────────┘
-```
-
-| Project | Job | Key library |
-|---|---|---|
-| `Scrinium.Core` | Records and interfaces, chunking, ingestion queue, retrieval, passage location, prompt, answering. Talks to models only through `IChatClient` and `IEmbeddingGenerator` | Microsoft.Extensions.AI |
-| `Scrinium.Storage` | SQLite document and vector store | Microsoft.Data.Sqlite |
-| `Scrinium.Extraction` | Text and PDF extractors | PdfPig |
-| `Scrinium.Desktop` | Sources, chat with citations, original preview, settings, Ollama status banner | Avalonia, OllamaSharp |
-| `tests/Scrinium.Tests` | xUnit tests with fake models, so they run without Ollama; architecture and composition tests | xunit |
+## Development
 
 ```bash
-dotnet test tests/Scrinium.Tests
+dotnet build
+dotnet test
 ```
 
-## Current limitations
+The SDK version is pinned in `global.json` and warnings are errors. The tests need no Ollama: models are replaced by small fakes, and continuous integration builds and tests on macOS, Windows and Linux.
 
-- Single user; no accounts or access control.
-- Only `.txt`, `.md` and `.pdf`. Scanned PDFs fail with a clear message (no OCR).
-- Search is vector-only; exact-word matches (invoice numbers, names) are not boosted.
-- Chat history lives in memory and is gone after restart.
-- Documents are added by hand; no folder watching.
-- Vector search scans every chunk, which is fine for thousands of chunks, not millions.
-- Only the Ollama provider is wired in, although Core accepts any `IChatClient` / `IEmbeddingGenerator`.
-- Answer quality depends on the models you choose, and mixed-language answers can happen.
+```
+src/
+  Scrinium.Core/         records, chunking, ingestion, retrieval, prompt, answering
+  Scrinium.Storage/      SQLite stores
+  Scrinium.Extraction/   text and PDF extractors
+  Scrinium.Desktop/      Avalonia app
+tests/
+  Scrinium.Tests/        unit, architecture and composition tests
+docs/
+  architecture.md        the same architecture for non-programmers
+```
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third-party components are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
