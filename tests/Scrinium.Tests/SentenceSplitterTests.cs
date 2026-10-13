@@ -74,6 +74,28 @@ public class SentenceSplitterTests
     }
 
     [Fact]
+    public void Every_table_row_is_its_own_passage_and_the_separator_row_is_dropped()
+    {
+        const string text = "| Plan | Requests per minute |\n|---|---|\n| Free | 60 |\n| Team | 1,200 |\n| Business | 6,000 |";
+
+        var rows = Texts(text);
+
+        Assert.Equal(["| Plan | Requests per minute |", "| Free | 60 |", "| Team | 1,200 |", "| Business | 6,000 |"], rows);
+    }
+
+    [Fact]
+    public void Text_before_and_after_a_table_stays_separate_from_its_rows()
+    {
+        const string text = "Rate limits apply per key and per minute.\n| Plan | Limit |\n|---|---|\n| Team | 1,200 |\nBursts are tolerated for ten seconds.";
+
+        var passages = Texts(text);
+
+        Assert.Equal("Rate limits apply per key and per minute.", passages[0]);
+        Assert.Contains("| Team | 1,200 |", passages);
+        Assert.Equal("Bursts are tolerated for ten seconds.", passages[^1]);
+    }
+
+    [Fact]
     public void Very_short_fragments_are_merged_with_the_next_sentence()
     {
         var text = "2020 – 2022. Built app features and the integration with the backend";

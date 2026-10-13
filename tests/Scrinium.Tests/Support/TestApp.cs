@@ -29,7 +29,8 @@ public sealed class TestApp : IDisposable
         Pipeline = new IngestionPipeline(Store, extractors, chunker, Embedder, Settings, Paths);
         Library = new DocumentLibrary(Store, Pipeline, Paths, TimeProvider.System);
         Retriever = new Retriever(Store, Store, Embedder, Settings, new PassageLocator(Embedder, Settings), retrieval ?? new RetrievalOptions());
-        Answers = new AnswerService(Retriever, Chat, Settings);
+        Rewriter = new QueryRewriter(Chat, Settings);
+        Answers = new AnswerService(Retriever, Rewriter, new PassageRefiner(Embedder, Settings), Chat, Settings);
         Preview = new DocumentPreviewService(Store, extractors, Paths);
     }
 
@@ -41,6 +42,7 @@ public sealed class TestApp : IDisposable
     public IngestionPipeline Pipeline { get; }
     public DocumentLibrary Library { get; }
     public Retriever Retriever { get; }
+    public QueryRewriter Rewriter { get; }
     public AnswerService Answers { get; }
     public DocumentPreviewService Preview { get; }
 

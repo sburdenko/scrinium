@@ -85,6 +85,15 @@ public sealed partial class ChatMessageViewModel : ObservableObject
         OnPropertyChanged(nameof(StatusLine));
     }
 
+    public void RefineSources(IReadOnlyList<Citation> citations)
+    {
+        Citations.Clear();
+        foreach (var citation in citations)
+            Citations.Add(new CitationViewModel(citation));
+
+        OnPropertyChanged(nameof(SourcesHeader));
+    }
+
     public void Append(string delta)
     {
         Text += delta;

@@ -1,5 +1,6 @@
 {
   "description": "Questions about the fictional Steuerberatung Müller & Partner, with what a correct answer must contain and which document it must cite.",
+  "documentLanguage": "de",
   "cases": [
     { "id": "hours-saturday", "question": "Ist die Kanzlei samstags geöffnet?", "language": "de", "expect": "answer", "contains": ["Termin"], "cites": "oeffnungszeiten-und-kontakt.md" },
     { "id": "hours-saturday-times", "question": "Von wann bis wann ist samstags geöffnet?", "language": "de", "expect": "answer", "contains": ["10", "13"], "cites": "oeffnungszeiten-und-kontakt.md" },

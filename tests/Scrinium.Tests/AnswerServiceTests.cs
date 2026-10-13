@@ -135,6 +135,32 @@ public sealed class AnswerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task After_the_answer_the_citation_moves_to_the_sentence_that_supports_the_claim()
+    {
+        using var app = new TestApp(new FakeChatClient("The tyres ", "are changed every November [1]."));
+        await app.ImportAndProcessAsync(app.WriteFile(
+            "car.txt", "The engine noise got louder in September. The tyres are changed every November."));
+
+        var events = new List<AnswerEvent>();
+        await foreach (var e in app.Answers.AskAsync("engine noise louder", []))
+            events.Add(e);
+
+        var first = events.OfType<AnswerEvent.SourcesFound>().First().Citations.Single();
+        var refined = Assert.Single(events.OfType<AnswerEvent.SourcesRefined>()).Citations.Single();
+        Assert.Equal("The engine noise got louder in September.", first.Preview);
+        Assert.Equal("The tyres are changed every November.", refined.Preview);
+        Assert.IsType<AnswerEvent.SourcesRefined>(events[^1]);
+    }
+
+    [Fact]
+    public async Task A_declined_answer_is_not_refined()
+    {
+        var events = await AskWithAsync([PromptBuilder.DeclineMarker, " Nothing here [1]."]);
+
+        Assert.Empty(events.OfType<AnswerEvent.SourcesRefined>());
+    }
+
+    [Fact]
     public async Task A_decline_marker_split_across_tokens_is_still_recognised()
     {
         var events = await AskWithAsync(["[[", "NO", "NE]] ", "Nichts gefunden."]);

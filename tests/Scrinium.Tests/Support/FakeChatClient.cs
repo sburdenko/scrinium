@@ -8,11 +8,20 @@ public sealed class FakeChatClient(params string[] tokens) : IChatClient
 
     public ChatOptions? LastOptions { get; private set; }
 
+    public string? NonStreamingReply { get; set; }
+
+    public List<IReadOnlyList<ChatMessage>> NonStreamingRequests { get; } = [];
+
     public Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
+        CancellationToken cancellationToken = default)
+    {
+        var list = messages.ToList();
+        NonStreamingRequests.Add(list);
+        var reply = NonStreamingReply ?? list[^1].Text ?? "";
+        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, reply)));
+    }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,

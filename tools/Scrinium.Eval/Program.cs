@@ -46,7 +46,9 @@ try
         return 2;
     }
 
-    var cases = CaseLoader.Load(options.Cases);
+    var cases = CaseLoader.Load(options.Cases)
+        .Where(c => options.Only is null || options.Only.Contains(c.Id))
+        .ToList();
     var files = Directory.GetFiles(options.Documents).Where(DocumentKinds.IsSupported).Order().ToList();
     var runner = new EvaluationRunner(
         provider.GetRequiredService<DocumentLibrary>(),

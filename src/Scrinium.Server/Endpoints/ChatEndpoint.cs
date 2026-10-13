@@ -61,6 +61,7 @@ internal static class ChatEndpoint
                 yield return current switch
                 {
                     AnswerEvent.SourcesFound sources => Item("sources", sources.Citations.Select(ToDto).ToList()),
+                    AnswerEvent.SourcesRefined refined => Item("sources", refined.Citations.Select(ToDto).ToList()),
                     AnswerEvent.TextDelta delta => Item("delta", delta.Text),
                     _ => Item("done", new { })
                 };

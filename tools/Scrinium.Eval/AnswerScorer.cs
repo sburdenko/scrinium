@@ -1,3 +1,5 @@
+using Scrinium.Core.Chat;
+
 namespace Scrinium.Eval;
 
 public static class AnswerScorer
@@ -21,6 +23,10 @@ public static class AnswerScorer
                 checks.Add(Facts(answers, observed));
                 if (answers.Cites is not null)
                     checks.Add(Source(answers.Cites, observed));
+                if (observed.CitedPassages is not null && answers.Contains.Count > 0)
+                    checks.Add(Passage(answers, observed.CitedPassages));
+                if (answers.Forbids is { Count: > 0 })
+                    checks.Add(Forbidden(answers.Forbids, observed));
                 break;
         }
 
@@ -33,23 +39,53 @@ public static class AnswerScorer
     private static CheckResult Facts(Expectation.Answers answers, AnswerObservation observed)
     {
         var text = Normalize(observed.Text);
-        var missing = answers.Contains.Where(fact => !text.Contains(Normalize(fact), StringComparison.OrdinalIgnoreCase)).ToList();
+        var missing = answers.Contains.Where(fact => !Present(text, fact)).ToList();
 
         return missing.Count == 0
             ? new CheckResult.Passed("facts")
             : new CheckResult.Failed("facts", "missing: " + string.Join(", ", missing));
     }
 
-    private static CheckResult Source(string expected, AnswerObservation observed) =>
-        observed.CitedTitles.Contains(expected, StringComparer.OrdinalIgnoreCase)
+    private static bool Present(string normalizedText, string fact) =>
+        fact.Split('|').Any(variant => normalizedText.Contains(Normalize(variant.Trim()), StringComparison.OrdinalIgnoreCase));
+
+    private static CheckResult Passage(Expectation.Answers answers, IReadOnlyList<string> passages)
+    {
+        var text = Normalize(string.Join(" ", passages));
+        return answers.Contains.Any(fact => Present(text, fact))
+            ? new CheckResult.Passed("passage")
+            : new CheckResult.Failed("passage", "the highlighted sentence holds none of the expected facts");
+    }
+
+    private static CheckResult Forbidden(IReadOnlyList<string> forbidden, AnswerObservation observed)
+    {
+        var text = Normalize(observed.Text);
+        var found = forbidden.Where(word => text.Contains(Normalize(word), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        return found.Count == 0
+            ? new CheckResult.Passed("forbidden")
+            : new CheckResult.Failed("forbidden", "contains: " + string.Join(", ", found));
+    }
+
+    private static CheckResult Source(string expected, AnswerObservation observed)
+    {
+        var acceptable = expected.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var hit = observed.CitedTitles.Any(title => acceptable.Contains(title, StringComparer.OrdinalIgnoreCase));
+
+        return hit
             ? new CheckResult.Passed("source")
-            : new CheckResult.Failed("source", $"expected {expected}, cited {(observed.CitedTitles.Count == 0 ? "nothing" : string.Join(", ", observed.CitedTitles))}");
+            : new CheckResult.Failed("source", $"expected {string.Join(" or ", acceptable)}, cited {(observed.CitedTitles.Count == 0 ? "nothing" : string.Join(", ", observed.CitedTitles))}");
+    }
 
     private static CheckResult Language(string expected, AnswerObservation observed)
     {
         var detected = LanguageDetector.Detect(observed.Text);
-        if (detected == "unknown")
-            return new CheckResult.Skipped("language", "the answer is too short to tell");
+        if (detected == LanguageDetector.Unknown)
+        {
+            return LanguageDetector.WordCount(observed.Text) >= LanguageDetector.EnoughWords
+                ? new CheckResult.Failed("language", $"expected {expected}, but no word of {expected} was recognised")
+                : new CheckResult.Skipped("language", "the answer is too short to tell");
+        }
 
         return detected == expected
             ? new CheckResult.Passed("language")
