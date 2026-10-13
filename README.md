@@ -12,12 +12,14 @@ connection the app makes is to your own Ollama server.
 2. **Index them.** Each file is split into chunks and every chunk is embedded by a local model. Progress and failures are visible per document, and failed ones can be retried.
 3. **Ask a question.** The question is embedded the same way and compared with all chunks.
 4. **Get a grounded answer.** The most relevant passages are given to a local chat model, which answers only from them and marks every claim with `[n]`.
-5. **Check the source.** Clicking a `[n]` marker or a source card opens the original text with the passage highlighted (for PDFs, the right page).
+5. **Check the source.** Clicking a `[n]` marker or a source card opens the original text, scrolled to the sentence or list item that best matches the question and highlighted (for PDFs, on the right page).
 
 ### Answers are honest about what they know
 
-- If nothing in the archive is close enough to the question, the app says so, names the closest document and its similarity, and **does not call the chat model at all**.
+- If the model finds no supporting fragment, it says so instead of guessing.
+- If nothing in the archive is even loosely related (similarity below 0.35), the app says so, names the closest document and its similarity, and does not call the chat model at all.
 - If nothing is indexed yet, it says that instead.
+- Under each answer, sources the model actually cited are listed first; other retrieved fragments are shown dimmed.
 - Document text is handed to the model as quoted data, not as instructions.
 
 ## Requirements
@@ -57,10 +59,10 @@ Set the `SCRINIUM_DATA` environment variable to use a different data folder. Cop
 | Chunking | Recursive: headings, blank lines, then sentences; about 400 tokens per chunk with 50 tokens of overlap. Each chunk keeps its page and character offset |
 | Embeddings | Batches of 32 through `IEmbeddingGenerator`; the model name is stored per document |
 | Storage | One SQLite file. Vectors are stored as normalized `float32` blobs and compared by cosine similarity in C# |
-| Retrieval | Top 6 chunks; a hit must score at least `0.5` and within `0.10` of the best hit. The neighbouring chunks before and after each hit are added to the context, up to about 3000 tokens |
+| Retrieval | Top 6 chunks; a hit must score at least `0.35` and within `0.10` of the best hit. The neighbouring chunks before and after each hit are added to the context, up to about 3000 tokens |
 | Answering | Last 6 chat messages plus the fragments go to `IChatClient`; the reply is streamed |
 
-The thresholds above were chosen by measuring `bge-m3` on a small mixed Russian/English/German/Ukrainian document set. They live in `RetrievalOptions` and depend on the embedding model.
+Similarity scores from `bge-m3` are not a reliable relevance verdict: on a corpus of documents about one person, relevant and irrelevant questions both land between 0.4 and 0.55. The `0.35` threshold only discards clearly unrelated queries; whether the fragments answer the question is decided by the chat model. The values live in `RetrievalOptions` and depend on the embedding model.
 
 ## Project layout
 
