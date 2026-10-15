@@ -11,7 +11,7 @@ Scrinium is a desktop app that indexes your text, Markdown and PDF files and ans
 
 Everything runs on your machine through [Ollama](https://ollama.com). Your documents, the index and the models stay local. The only network connection the app makes is the one to your own Ollama server.
 
-![Two questions and their answers, with the fragments the answers were built from listed under Notes](docs/screenshots/ask.png)
+![The desktop window: the archive on the left, a question with its answer and cited sources in the middle, the original with the cited sentence highlighted on the right](docs/screenshots/workbench.png)
 
 The screenshots show the desktop app on the [Kestrel Analytics demo documents](demo/kestrel-analytics/documents), answered by `qwen3-coder:30b` through Ollama.
 
@@ -37,7 +37,7 @@ ollama pull qwen3-coder:30b   # answers; any instruct model works
 dotnet run --project src/Scrinium.Desktop
 ```
 
-Then open **Archive**, press **Add files** or drop `.txt`, `.md` and `.pdf` files on the window, wait until each file reads **Ready**, and switch to **Ask**.
+Then press **Add files** or drop `.txt`, `.md` and `.pdf` files on the window, wait until each row in the archive shows its type and chunk count, and ask.
 
 If Ollama is not running or a model is missing, the banner at the top offers **Start Ollama** and **Download models**.
 
@@ -55,21 +55,22 @@ Open <http://localhost:5088> for the chat page. Files in the documents folder ar
 
 | You want to | Do this |
 |---|---|
-| Add documents | **Archive**, then **Add files**, or drag and drop files onto the window |
-| Ask something | Type in the box at the bottom of **Ask**, **Enter** sends, **Shift+Enter** adds a line |
-| See what an answer was built from | The **Notes** column lists the retrieved fragments; the ones the answer cites are bright |
-| Check a claim | Click the number in the answer or a note. The **Original** panel opens at the cited sentence |
-| Read the whole file | **Open file** in the Original panel launches it |
-| Find a document | Type in **Filter by name** in the Archive |
-| Retry a failed file | The retry arrow on the file, or **Retry failures**. A red badge on the Archive tab counts failures |
+| Add documents | **Add files** under the archive, or drag and drop files onto the window |
+| Ask something | Type in the box at the bottom, **Enter** sends, **Shift+Enter** adds a line |
+| Check a claim | Click the number in the answer, or one of the cells under it. The right column shows the passage with the cited sentence highlighted |
+| Step through the sources | **Previous** and **Next** under the original; they wrap around |
+| See which documents an answer used | Their rows in the archive carry the citation numbers |
+| Read a whole document | Click its row in the archive; **Open file** launches the file itself |
+| Return to an earlier answer | Click its row in the middle column; it expands and the others collapse |
+| Find a document | Type in **Filter by name** above the archive |
+| Retry a failed file | The retry arrow on its row; the row shows the reason |
+| Delete a file | The cross that appears when you hover its row |
 | Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
-| Start over | **New chat** |
+| Start a new topic | **New question**: earlier answers stay as rows, but follow-ups no longer see them |
 
-The window uses one dark palette. The app icon is a pair of brackets around a one: a citation.
+The window has one dark palette and one screen with three columns: archive, question and answer, original. The app icon is a pair of brackets around a one: a citation.
 
-![The Original panel open on the sentence an answer cites, with the other cited fragments one click away](docs/screenshots/original.png)
-
-![The Archive: every document with its type, date and state](docs/screenshots/archive.png)
+![An earlier answer reopened: the other exchange collapses into a row and the right column follows its source](docs/screenshots/earlier-exchange.png)
 
 ## HTTP API
 
@@ -266,7 +267,7 @@ flowchart TB
 | `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
 | `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
 | `Scrinium.Ollama` | Ollama client registration, status check, model pull | OllamaSharp |
-| `Scrinium.Desktop` | Ask and Archive views, notes, original preview, settings, Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
+| `Scrinium.Desktop` | One window with the archive, the chat and the original preview; settings; Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
 | `Scrinium.Server` | Chat, source preview, document list and health endpoints, the chat page, limits | ASP.NET Core |
 | `tests/Scrinium.Tests` | Unit, architecture, composition and server tests with fake models | xunit |
 
