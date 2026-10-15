@@ -78,4 +78,49 @@ public sealed class PassageRefinerTests : IDisposable
         Assert.Equal("| Team | 1,200 |", refined[0].Preview);
         Assert.Equal("The service credit is 10 percent of the fee.", refined[1].Preview);
     }
+
+    private const string Availability =
+        "## Availability\n\nPaid plans are covered by a monthly availability target of 99.5 percent. " +
+        "If the monthly availability falls below the target, the customer receives a credit of 5 percent of that month's fee.";
+
+    [Fact]
+    public async Task A_decimal_number_in_the_answer_stays_one_claim()
+    {
+        var fragment = Fragment(Availability);
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "In 2025, paid plans were covered by a monthly availability target of 99.5 percent [1].");
+
+        Assert.Equal("Paid plans are covered by a monthly availability target of 99.5 percent.", Assert.Single(refined).Preview);
+    }
+
+    private const string Export =
+        "Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren. " +
+        "Danach werden alle Daten endgültig gelöscht. Eine Wiederherstellung ist nicht möglich.";
+
+    [Fact]
+    public async Task Every_sentence_since_the_previous_marker_is_part_of_the_claim()
+    {
+        var fragment = Fragment(Export);
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Nach der Kündigung können Sie Ihre Daten noch 30 Tage lang exportieren. Danach werden die Daten gelöscht [1].");
+
+        Assert.Equal(
+            "Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren.",
+            Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task Text_before_an_earlier_marker_is_not_part_of_the_next_claim()
+    {
+        var first = Fragment(Availability, number: 1);
+        var second = Fragment(Export, number: 2);
+
+        var refined = await Refiner.RefineAsync([first, second],
+            "The target is 99.5 percent [1]. Data can be exported for 30 days [2].");
+
+        Assert.Equal("Paid plans are covered by a monthly availability target of 99.5 percent.", refined[0].Preview);
+        Assert.StartsWith("Wenn Sie Ihr Konto kündigen", refined[1].Preview);
+    }
 }
