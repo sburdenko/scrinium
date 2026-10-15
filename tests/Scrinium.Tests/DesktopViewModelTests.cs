@@ -442,3 +442,101 @@ public sealed class ArchiveRowTests
         Assert.Equal(OriginalState.Empty, original.State);
     }
 }
+
+public sealed class SessionTests
+{
+    [Fact]
+    public async Task A_finished_answer_is_saved_to_the_current_session()
+    {
+        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+
+        await harness.AskAsync("engine noise louder");
+        await harness.AskAsync("engine noise again");
+
+        var session = Assert.Single(await harness.Sessions.ListRecentAsync(10));
+        Assert.Equal("engine noise louder", session.Title);
+        Assert.Equal(2, session.QuestionCount);
+    }
+
+    [Fact]
+    public async Task A_new_question_starts_a_new_session()
+    {
+        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
+
+        harness.Chat.NewQuestionCommand.Execute(null);
+        await harness.AskAsync("engine noise September");
+
+        Assert.Equal(2, (await harness.Sessions.ListRecentAsync(10)).Count);
+    }
+
+    [Fact]
+    public async Task Recent_sessions_appear_on_an_empty_window()
+    {
+        using var first = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await first.AskAsync("engine noise louder");
+
+        var reopened = first.Reopen();
+        await reopened.Chat.LoadRecentSessionsAsync();
+
+        var recent = Assert.Single(reopened.Chat.RecentSessions);
+        Assert.Equal("engine noise louder", recent.Title);
+        Assert.Equal("1 question", recent.QuestionsText);
+        Assert.True(reopened.Chat.ShowsRecentSessions);
+    }
+
+    [Fact]
+    public async Task Opening_a_saved_session_restores_its_exchanges_and_sources()
+    {
+        using var first = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await first.AskAsync("engine noise louder");
+        await first.AskAsync("engine noise again");
+
+        var reopened = first.Reopen();
+        await reopened.Chat.LoadRecentSessionsAsync();
+        await reopened.Chat.OpenSessionCommand.ExecuteAsync(reopened.Chat.RecentSessions[0]);
+
+        Assert.Equal(["engine noise louder", "engine noise again"], reopened.Chat.Exchanges.Select(e => e.Question));
+        var focused = reopened.Chat.FocusedExchange!;
+        Assert.Same(reopened.Chat.Exchanges[^1], focused);
+        Assert.Equal("It got louder [1].", focused.Answer.Text);
+        Assert.Contains(focused.Answer.CitedCitations, c => c.Number == 1);
+        Assert.False(reopened.Chat.ShowsRecentSessions);
+        Assert.IsType<PreviewPanelViewModel>(reopened.Panel.Current);
+    }
+
+    [Fact]
+    public async Task A_follow_up_in_a_reopened_session_continues_it_with_its_history()
+    {
+        var chat = new FakeChatClient("It got louder [1].");
+        using var first = new DesktopHarness(chat);
+        await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await first.AskAsync("engine noise louder walrus");
+
+        var reopened = first.Reopen();
+        await reopened.Chat.LoadRecentSessionsAsync();
+        await reopened.Chat.OpenSessionCommand.ExecuteAsync(reopened.Chat.RecentSessions[0]);
+        await reopened.AskAsync("engine noise September");
+
+        Assert.Contains(chat.Requests[^1], m => (m.Text ?? "").Contains("walrus"));
+        var session = Assert.Single(await reopened.Sessions.ListRecentAsync(10));
+        Assert.Equal(2, session.QuestionCount);
+    }
+
+    [Fact]
+    public async Task A_failed_answer_is_not_saved()
+    {
+        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        harness.App.Embedder.FailWith = new HttpRequestException("model server is down");
+
+        await harness.AskAsync("engine noise louder");
+
+        Assert.True(harness.Chat.Exchanges[0].Answer.IsFailed);
+        Assert.Empty(await harness.Sessions.ListRecentAsync(10));
+    }
+}

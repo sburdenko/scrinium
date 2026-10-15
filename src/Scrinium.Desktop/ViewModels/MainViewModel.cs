@@ -44,6 +44,7 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         await Sources.InitializeAsync();
+        await Chat.LoadRecentSessionsAsync();
         Banner.Start();
     }
 

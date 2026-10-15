@@ -17,29 +17,38 @@
             <TextBlock Classes="question" Text="Ask your archive" />
             <TextBlock Classes="muted" FontSize="16" TextWrapping="Wrap"
                        Text="Every answer links to the sentence it came from. If your documents don't say, Scrinium tells you so." />
-            <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,12,0,0">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="x:String">
-                  <Button Classes="row" Command="{Binding #Root.((vm:ChatViewModel)DataContext).UseSuggestionCommand}"
-                          CommandParameter="{Binding}">
-                    <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
-                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding}" FontSize="15" TextWrapping="Wrap" />
-                        <Path Grid.Column="1" Classes="icon" Data="{StaticResource IconArrowRight}"
-                              Stroke="{DynamicResource Accent}" />
-                      </Grid>
-                    </Border>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <StackPanel IsVisible="{Binding ShowsRecentSessions}" Spacing="10" Margin="0,16,0,0">
+              <TextBlock Classes="label" Text="RECENT SESSIONS" />
+              <ItemsControl ItemsSource="{Binding RecentSessions}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SessionSummaryViewModel">
+                    <Button Classes="row" Command="{Binding #Root.((vm:ChatViewModel)DataContext).OpenSessionCommand}"
+                            AutomationProperties.Name="{Binding Title}"
+                            CommandParameter="{Binding}">
+                      <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+                          <TextBlock Text="{Binding Title}" FontSize="15" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Grid.Column="1" Classes="muted" FontSize="12" VerticalAlignment="Center">
+                            <Run Text="{Binding WhenText}" />
+                            <Run Text=" · " />
+                            <Run Text="{Binding QuestionsText}" />
+                          </TextBlock>
+                          <Path Grid.Column="2" Classes="icon" Data="{StaticResource IconArrowRight}"
+                                Stroke="{DynamicResource Accent}" />
+                        </Grid>
+                      </Border>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </StackPanel>
 
           <ItemsControl ItemsSource="{Binding Exchanges}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:ExchangeViewModel">
                 <Grid>
-                  <Button Classes="row" IsVisible="{Binding IsCompressed}"
+                  <Button Classes="row" IsVisible="{Binding IsCompressed}" AutomationProperties.Name="{Binding Question}"
                           Command="{Binding #Root.((vm:ChatViewModel)DataContext).FocusExchangeCommand}"
                           CommandParameter="{Binding}">
                     <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,18">
@@ -88,6 +97,7 @@
                             <DataTemplate x:DataType="vm:CitationViewModel">
                               <Border BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
                                 <Button Classes="cell" Classes.active="{Binding IsActive}"
+                                        AutomationProperties.Name="{Binding DocumentTitle}"
                                         Command="{Binding #Root.((vm:ChatViewModel)DataContext).OpenCitationCommand}"
                                         CommandParameter="{Binding}">
                                   <StackPanel Spacing="4">
@@ -126,7 +136,8 @@
           <TextBox x:Name="Prompt" Classes="composer" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="150"
                    PlaceholderText="{Binding ComposerPlaceholder}" Text="{Binding Input}" />
           <Button Grid.Column="1" Classes="primary icon" VerticalAlignment="Bottom"
-                  IsVisible="{Binding !IsBusy}" Command="{Binding SendCommand}" ToolTip.Tip="Send">
+                  IsVisible="{Binding !IsBusy}" Command="{Binding SendCommand}" ToolTip.Tip="Send"
+                  AutomationProperties.Name="Send">
             <Path Classes="icon" Width="18" Height="18" Data="{StaticResource IconArrowUp}"
                   Stroke="{DynamicResource OnAccent}" StrokeThickness="2.5" />
           </Button>

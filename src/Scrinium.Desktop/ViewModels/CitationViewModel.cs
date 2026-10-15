@@ -6,6 +6,8 @@ namespace Scrinium.Desktop.ViewModels;
 
 public sealed partial class CitationViewModel(Citation citation) : ObservableObject
 {
+    public Citation Source { get; } = citation;
+
     public int Number { get; } = citation.Number;
 
     public string Label { get; } = $"[{citation.Number}]";

@@ -89,6 +89,18 @@ public sealed partial class AnswerViewModel : ObservableObject
         NotifyCitationsChanged();
     }
 
+    public void Restore(string text, IReadOnlyList<Citation> citations, MessagePhase ending)
+    {
+        Text = text;
+        Citations.Clear();
+        var cited = CitationMarkers.CitedNumbers(text);
+        foreach (var citation in citations)
+            Citations.Add(new CitationViewModel(citation) { IsCited = cited.Contains(citation.Number) });
+
+        Phase = ending;
+        NotifyCitationsChanged();
+    }
+
     public void Append(string delta)
     {
         Text += delta;
