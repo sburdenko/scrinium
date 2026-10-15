@@ -22,7 +22,7 @@ Each part is a separate project in `src/`. A part may use only the parts listed 
 | **Storage** | Keeps documents, passages and their number lists in one SQLite file and searches them. The only part that knows how that file is laid out. | Core | SQLite |
 | **Extraction** | Gets plain text out of files: `.txt`, `.md` and `.pdf`. The only part that understands the PDF format. | Core | PdfPig |
 | **Ollama** | Connects Core to an Ollama server: the two model interfaces, a check of what is installed, and downloading models. The only part that knows about Ollama. | Core | OllamaSharp |
-| **Desktop** | The window: an Ask view with the chat, the notes and the original preview, an Archive view with the document list, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
+| **Desktop** | The window: the document archive, the chat with its cited sources and the original preview side by side, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
 | **Server** | A small web application: a chat endpoint that streams the answer, a source preview, a document list behind a key, a health check and the chat page. Limits how often and how many at once a visitor can ask. | Core, Storage, Extraction, Ollama | ASP.NET Core |
 
 `tests/Scrinium.Tests` checks Core with fake models, and runs the Server on a test server, so the whole test run needs no model server.
