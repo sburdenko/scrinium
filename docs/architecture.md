@@ -16,6 +16,8 @@ You add a file. Scrinium reads its text, cuts it into passages, turns every pass
 
 Each part is a separate project in `src/`. A part may use only the parts listed in its "Uses" column. A test checks this on every build, so the table cannot quietly go stale.
 
+Documents live in **workspaces**. A workspace is a folder with its own database, originals and saved sessions. Opening a workspace builds a fresh set of the parts below on that folder only, so a question asked in one workspace cannot reach another's documents: they are not in the file it reads. The desktop window switches workspaces from a picker above the archive; the server serves each configured workspace under its own address and API key.
+
 | Part | What it does | Uses | Outside library |
 |---|---|---|---|
 | **Core** | Everything that is about *meaning*: what a document, a chunk and a citation are, how text is cut, how passages are found and ranked, how the prompt is written, how an answer is assembled. It talks to models only through two small interfaces, so it does not know which model server is behind them. | nothing | model interfaces only (Microsoft.Extensions.AI) |
