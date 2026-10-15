@@ -36,7 +36,12 @@ public static class CaseLoader
         Expectation expectation = Text(element, "expect") switch
         {
             "refusal" => new Expectation.Refuses(),
-            "answer" when contains.Count > 0 || cites is not null => new Expectation.Answers(contains, cites, forbids),
+            "answer" when contains.Count > 0 || cites is not null => new Expectation.Answers(contains, cites, forbids)
+            {
+                Passage = element.TryGetProperty("passage", out var passage)
+                    ? passage.EnumerateArray().Select(item => item.GetString()!).ToList()
+                    : null
+            },
             "answer" => throw new InvalidDataException($"The case '{id}' expects an answer but names no fact and no source."),
             var other => throw new InvalidDataException($"The case '{id}' has an unknown expectation '{other}'.")
         };
