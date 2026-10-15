@@ -13,14 +13,20 @@ public sealed partial class PassageRefiner(
     ISettingsProvider settings)
 {
     private const double NumberWeight = 0.3;
+    private const double QuestionWeight = 0.5;
     private const int PreviewLength = 220;
 
     [GeneratedRegex(@"\d+(?:[.,  ]\d{3})*(?:[.,]\d+)?")]
     private static partial Regex NumberPattern();
 
+    /// <summary>
+    /// Moves each cited fragment's highlight to the sentence that best supports what the answer claims for it,
+    /// leaning towards sentences about what was asked.
+    /// </summary>
     public async Task<IReadOnlyList<Citation>> RefineAsync(
         IReadOnlyList<ContextFragment> fragments,
         string answer,
+        string question,
         CancellationToken ct = default)
     {
         var claims = Claims(answer);
@@ -34,8 +40,10 @@ public sealed partial class PassageRefiner(
         if (work.Count == 0)
             return unchanged;
 
+        var asked = question.Trim();
         var texts = work
             .SelectMany(w => w.Spans.Select(span => w.Fragment.ChunkText.Substring(span.Start, span.Length)).Prepend(w.Claim))
+            .Prepend(asked.Length > 0 ? asked : " ")
             .ToList();
 
         GeneratedEmbeddings<Embedding<float>> embeddings;
@@ -51,7 +59,9 @@ public sealed partial class PassageRefiner(
         }
 
         var refined = new Dictionary<int, Citation>();
-        var next = 0;
+        var questionVector = asked.Length > 0 ? VectorMath.Normalize(embeddings[0].Vector.Span) : null;
+        var questionNumbers = NumberEvidence.Numbers(asked);
+        var next = 1;
         foreach (var (fragment, spans, claim) in work)
         {
             var claimVector = VectorMath.Normalize(embeddings[next++].Vector.Span);
@@ -61,7 +71,9 @@ public sealed partial class PassageRefiner(
             {
                 var sentence = fragment.ChunkText.Substring(span.Start, span.Length);
                 var vector = VectorMath.Normalize(embeddings[next++].Vector.Span);
-                var score = VectorMath.Dot(claimVector, vector) + NumberWeight * NumberOverlap(claim, sentence);
+                var score = VectorMath.Dot(claimVector, vector)
+                    + (questionVector is null ? 0 : QuestionWeight * VectorMath.Dot(questionVector, vector))
+                    + NumberWeight * NumberEvidence.Overlap(claim, sentence, questionNumbers);
                 if (score > best.Score)
                     best = (span, score);
             }
@@ -132,19 +144,4 @@ public sealed partial class PassageRefiner(
         return spans.Count == 0 ? "" : cleaned.Substring(spans[0].Start, spans[0].Length);
     }
 
-    private static double NumberOverlap(string claim, string sentence)
-    {
-        var wanted = Numbers(claim);
-        if (wanted.Count == 0)
-            return 0;
-
-        var present = Numbers(sentence);
-        return (double)wanted.Count(present.Contains) / wanted.Count;
-    }
-
-    private static HashSet<string> Numbers(string text) =>
-        NumberPattern().Matches(text)
-            .Select(match => new string(match.Value.Where(char.IsDigit).ToArray()))
-            .Where(digits => digits.Length > 0)
-            .ToHashSet();
 }

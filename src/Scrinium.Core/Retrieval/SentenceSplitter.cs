@@ -30,7 +30,9 @@ public static class SentenceSplitter
             return LineBreakEndsPassage(text, start, index);
 
         var terminal = c is '.' or '!' or '?' or '…';
-        return terminal && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]));
+        return terminal
+            && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]))
+            && !(c == '.' && IsDayBeforeMonth(text, index));
     }
 
     private static bool IsTableSeparator(string text, int start, int end)
@@ -61,6 +63,34 @@ public static class SentenceSplitter
     }
 
     private static bool IsHeading(ReadOnlySpan<char> line) => line.StartsWith("#");
+
+    private static readonly string[] MonthStems =
+    [
+        "jan", "feb", "mär", "mar", "apr", "mai", "may", "jun", "jul", "aug", "sep", "okt", "oct", "nov", "dez", "dec"
+    ];
+
+    /// <summary>The full stop of a German date such as "31. Juli" or "1. März", which does not end the sentence.</summary>
+    private static bool IsDayBeforeMonth(string text, int dot)
+    {
+        var digits = 0;
+        while (dot - digits - 1 >= 0 && char.IsDigit(text[dot - digits - 1]))
+            digits++;
+
+        var before = dot - digits - 1;
+        if (digits is 0 or > 2 || (before >= 0 && !char.IsWhiteSpace(text[before])))
+            return false;
+
+        var word = dot + 1;
+        while (word < text.Length && text[word] == ' ')
+            word++;
+
+        var end = word;
+        while (end < text.Length && char.IsLetter(text[end]))
+            end++;
+
+        var next = text[word..end];
+        return next.Length >= 3 && MonthStems.Any(stem => next.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
+    }
 
     private static bool StartsBlankLine(string text, int newline)
     {
