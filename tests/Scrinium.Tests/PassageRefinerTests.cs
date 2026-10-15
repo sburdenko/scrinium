@@ -156,4 +156,28 @@ public sealed class PassageRefinerTests : IDisposable
 
         Assert.Equal("| Business | 199 |", Assert.Single(refined).Preview);
     }
+
+    private const string Faq = "## Kann ich Unterlagen digital einreichen?\n\nJa. Nutzen Sie das Mandantenportal oder senden Sie die Dateien verschlüsselt.";
+
+    [Fact]
+    public async Task A_heading_that_repeats_the_question_is_not_the_evidence()
+    {
+        var fragment = Fragment(Faq);
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Ja, Sie können Unterlagen digital einreichen [1].", "Kann ich Unterlagen digital einreichen?");
+
+        Assert.StartsWith("Ja. Nutzen Sie das Mandantenportal", Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task A_heading_that_holds_the_stated_date_is_the_evidence()
+    {
+        var fragment = Fragment("## Version 3.4, released on 12 September 2025\n\nAdded single sign-on with SAML 2.0 for the Business plan.");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Single sign-on was added on 12 September 2025 [1].", "When was single sign-on added?");
+
+        Assert.Equal("## Version 3.4, released on 12 September 2025", Assert.Single(refined).Preview);
+    }
 }

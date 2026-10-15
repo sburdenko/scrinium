@@ -76,9 +76,15 @@ public sealed partial class PassageRefiner(
                 scored.Add((span, NumberEvidence.Overlap(claim, sentence, questionNumbers), likeness));
             }
 
+            var eligible = scored
+                .Where(s => s.Numbers > 0 || !SentenceSplitter.IsHeading(fragment.ChunkText, s.Span))
+                .ToList();
+            if (eligible.Count == 0)
+                continue;
+
             // A sentence that repeats the figures the answer states is the evidence; likeness only chooses among those.
-            var strongest = scored.Max(s => s.Numbers);
-            var best = scored.Where(s => s.Numbers >= strongest - SameEvidence).MaxBy(s => s.Likeness);
+            var strongest = eligible.Max(s => s.Numbers);
+            var best = eligible.Where(s => s.Numbers >= strongest - SameEvidence).MaxBy(s => s.Likeness);
             refined[fragment.Citation.Number] = Place(fragment, best.Span);
         }
 

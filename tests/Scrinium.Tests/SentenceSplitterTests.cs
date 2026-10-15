@@ -118,13 +118,15 @@ public class SentenceSplitterTests
     }
 
     [Fact]
-    public void A_markdown_heading_is_never_a_passage_and_does_not_stick_to_the_next_one()
+    public void A_markdown_heading_is_a_passage_of_its_own()
     {
-        var text = "## Kann ich Unterlagen digital einreichen?\n\nJa. Nutzen Sie das Mandantenportal oder senden Sie die Dateien verschlüsselt.";
+        var text = "## Version 3.4, released on 12 September 2025\n\nAdded single sign-on with SAML 2.0 for the Business plan.";
 
         var sentences = Texts(text);
 
-        Assert.Equal(["Ja. Nutzen Sie das Mandantenportal oder senden Sie die Dateien verschlüsselt."], sentences);
+        Assert.Equal(["## Version 3.4, released on 12 September 2025", "Added single sign-on with SAML 2.0 for the Business plan."], sentences);
+        Assert.True(SentenceSplitter.IsHeading(text, SentenceSplitter.Split(text)[0]));
+        Assert.False(SentenceSplitter.IsHeading(text, SentenceSplitter.Split(text)[1]));
     }
 
     [Fact]

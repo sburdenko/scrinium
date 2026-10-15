@@ -15,10 +15,16 @@ public sealed class PassageLocator(
         CancellationToken ct)
     {
         var passages = hits.ToDictionary(h => h.Chunk.Id, h => new PassageSpan(0, h.Chunk.Text.Length));
-        var candidates = hits
-            .Select(h => (Hit: h, Spans: SentenceSplitter.Split(h.Chunk.Text)))
-            .Where(c => c.Spans.Count > 1)
+        var split = hits
+            .Select(h => (Hit: h, Spans: SentenceSplitter.Split(h.Chunk.Text)
+                .Where(span => !SentenceSplitter.IsHeading(h.Chunk.Text, span))
+                .ToList()))
             .ToList();
+
+        foreach (var (hit, spans) in split.Where(s => s.Spans.Count == 1))
+            passages[hit.Chunk.Id] = spans[0];
+
+        var candidates = split.Where(c => c.Spans.Count > 1).ToList();
 
         if (candidates.Count == 0)
             return passages;
