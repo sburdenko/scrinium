@@ -1,21 +1,30 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using Scrinium.Core.Chat;
+using Scrinium.Core.Sessions;
 
 namespace Scrinium.Desktop.ViewModels;
 
 public sealed partial class ChatViewModel : ObservableObject
 {
+    private const int RecentSessionLimit = 8;
+
     private readonly AnswerService _answers;
     private readonly PanelHost _panel;
+    private readonly ISessionStore _sessions;
+    private readonly ILogger<ChatViewModel> _logger;
     private CancellationTokenSource? _cts;
     private int _historyStart;
+    private Guid? _sessionId;
 
-    public ChatViewModel(AnswerService answers, PanelHost panel)
+    public ChatViewModel(AnswerService answers, PanelHost panel, ISessionStore sessions, ILogger<ChatViewModel> logger)
     {
         _answers = answers;
         _panel = panel;
+        _sessions = sessions;
+        _logger = logger;
         panel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(PanelHost.Current))
@@ -39,14 +48,11 @@ public sealed partial class ChatViewModel : ObservableObject
         CitationStateChanged?.Invoke();
     }
 
-    public IReadOnlyList<string> Suggestions { get; } =
-    [
-        "What did I write about the engine noise in September?",
-        "How much did I spend on hosting this year?",
-        "What does the contract say about the cancellation period?"
-    ];
+    public ObservableCollection<SessionSummaryViewModel> RecentSessions { get; } = [];
 
     public bool IsEmpty => Exchanges.Count == 0;
+
+    public bool ShowsRecentSessions => IsEmpty && RecentSessions.Count > 0;
 
     public string SessionLine =>
         $"Session · {Exchanges.Count} {(Exchanges.Count == 1 ? "question" : "questions")}";
@@ -84,15 +90,10 @@ public sealed partial class ChatViewModel : ObservableObject
             .SelectMany(e => new[] { ChatTurn.User(e.Question), ChatTurn.Assistant(e.Answer.Text) })
             .ToList();
 
-        var exchange = new ExchangeViewModel(question, DateTimeOffset.Now);
-        exchange.Answer.CitationsChanged += () =>
-        {
-            if (ReferenceEquals(FocusedExchange, exchange))
-                CitationStateChanged?.Invoke();
-        };
-
+        var exchange = Track(new ExchangeViewModel(question, DateTimeOffset.Now));
         Exchanges.Add(exchange);
         FocusedExchange = exchange;
+        var sessionId = _sessionId ??= Guid.NewGuid();
         _panel.ResetOriginal();
         NotifySessionChanged();
         ScrollRequested?.Invoke();
@@ -138,6 +139,8 @@ public sealed partial class ChatViewModel : ObservableObject
             ScrollRequested?.Invoke();
         }
 
+        await SaveAsync(sessionId, exchange);
+
         if (ReferenceEquals(FocusedExchange, exchange))
             await ShowFirstSourceAsync(exchange);
     }
@@ -149,13 +152,66 @@ public sealed partial class ChatViewModel : ObservableObject
     private void NewQuestion()
     {
         _historyStart = Exchanges.Count;
+        _sessionId = null;
         FocusedExchange = null;
         _panel.ResetOriginal();
         FocusComposerRequested?.Invoke();
     }
 
+    public async Task LoadRecentSessionsAsync()
+    {
+        IReadOnlyList<SessionSummary> recent;
+        try
+        {
+            recent = await _sessions.ListRecentAsync(RecentSessionLimit);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the saved sessions");
+            return;
+        }
+
+        RecentSessions.Clear();
+        foreach (var summary in recent)
+            RecentSessions.Add(new SessionSummaryViewModel(summary));
+
+        OnPropertyChanged(nameof(ShowsRecentSessions));
+    }
+
     [RelayCommand]
-    private void UseSuggestion(string suggestion) => Input = suggestion;
+    private async Task OpenSessionAsync(SessionSummaryViewModel? session)
+    {
+        if (session is null || IsBusy)
+            return;
+
+        IReadOnlyList<SavedExchange> saved;
+        try
+        {
+            saved = await _sessions.LoadAsync(session.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not open session {SessionId}", session.Id);
+            return;
+        }
+
+        FocusedExchange = null;
+        Exchanges.Clear();
+        foreach (var item in saved)
+        {
+            var exchange = Track(new ExchangeViewModel(item.Question, item.Asked));
+            exchange.Answer.Restore(item.Answer, item.Citations, item.Ending == ExchangeEnding.Stopped ? MessagePhase.Stopped : MessagePhase.Done);
+            Exchanges.Add(exchange);
+        }
+
+        _sessionId = session.Id;
+        _historyStart = 0;
+        NotifySessionChanged();
+        ScrollRequested?.Invoke();
+
+        if (Exchanges.Count > 0)
+            await FocusExchangeAsync(Exchanges[^1]);
+    }
 
     [RelayCommand]
     private async Task FocusExchangeAsync(ExchangeViewModel? exchange)
@@ -194,9 +250,42 @@ public sealed partial class ChatViewModel : ObservableObject
         await OpenCitationAsync(first);
     }
 
+    private ExchangeViewModel Track(ExchangeViewModel exchange)
+    {
+        exchange.Answer.CitationsChanged += () =>
+        {
+            if (ReferenceEquals(FocusedExchange, exchange))
+                CitationStateChanged?.Invoke();
+        };
+        return exchange;
+    }
+
+    private async Task SaveAsync(Guid sessionId, ExchangeViewModel exchange)
+    {
+        var answer = exchange.Answer;
+        if (!answer.IsFinished)
+            return;
+
+        var saved = new SavedExchange(
+            exchange.Asked,
+            exchange.Question,
+            answer.Text,
+            answer.IsStopped ? ExchangeEnding.Stopped : ExchangeEnding.Answered,
+            answer.Citations.Select(c => c.Source).ToList());
+        try
+        {
+            await _sessions.AppendAsync(sessionId, saved);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not save the exchange to session {SessionId}", sessionId);
+        }
+    }
+
     private void NotifySessionChanged()
     {
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(ShowsRecentSessions));
         OnPropertyChanged(nameof(SessionLine));
         OnPropertyChanged(nameof(ComposerPlaceholder));
     }

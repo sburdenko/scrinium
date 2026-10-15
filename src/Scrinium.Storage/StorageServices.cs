@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Scrinium.Core.Sessions;
 using Scrinium.Core.Storage;
 
 namespace Scrinium.Storage;
@@ -10,6 +11,7 @@ public static class StorageServices
         services.AddSingleton(sp => new SqliteStore(sp.GetRequiredService<DataPaths>().DatabasePath));
         services.AddSingleton<IDocumentStore>(sp => sp.GetRequiredService<SqliteStore>());
         services.AddSingleton<IVectorStore>(sp => sp.GetRequiredService<SqliteStore>());
+        services.AddSingleton<ISessionStore>(sp => new SqliteSessionStore(sp.GetRequiredService<DataPaths>().DatabasePath));
         return services;
     }
 }

@@ -23,6 +23,7 @@ public sealed class TestApp : IDisposable
         Paths = new DataPaths(Path.Combine(_temp.Path, "data"));
         Settings = new SettingsService(Path.Combine(_temp.Path, "settings.json"));
         Store = new SqliteStore(Paths.DatabasePath);
+        Sessions = new SqliteSessionStore(Paths.DatabasePath);
 
         ITextExtractor[] extractors = [new TextFileExtractor(), new PdfTextExtractor()];
         var chunker = new TextChunker(new ChunkingOptions(MaxTokens: 60, OverlapTokens: 8));
@@ -39,6 +40,7 @@ public sealed class TestApp : IDisposable
     public DataPaths Paths { get; }
     public SettingsService Settings { get; }
     public SqliteStore Store { get; }
+    public SqliteSessionStore Sessions { get; }
     public IngestionPipeline Pipeline { get; }
     public DocumentLibrary Library { get; }
     public Retriever Retriever { get; }
