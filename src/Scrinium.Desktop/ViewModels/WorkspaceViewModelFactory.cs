@@ -16,6 +16,9 @@ public sealed class WorkspaceViewModelFactory(
     public async Task<WorkspaceViewModel> OpenAsync(Workspace workspace)
     {
         var scope = scopes.Open(workspace);
+        var logger = loggers.CreateLogger<WorkspaceViewModelFactory>();
+        scope.Library.ProcessingFailed += (id, ex) =>
+            logger.LogError(ex, "Indexing document {DocumentId} in workspace {Workspace} failed", id, workspace.Id);
         scope.StartWorker();
 
         var panel = new PanelHost(scope.Previews, settings, scope.Library, monitor, scope.Paths);

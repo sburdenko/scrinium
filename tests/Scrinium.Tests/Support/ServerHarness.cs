@@ -82,7 +82,8 @@ public sealed class ServerHarness : IAsyncDisposable
             ? workspaces.Default
             : workspaces.All.Single(w => w.Scope.Workspace.Id.Value == workspace);
         var library = served.Scope.Library;
-        for (var attempt = 0; attempt < 200; attempt++)
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (DateTime.UtcNow < deadline)
         {
             var all = await library.ListAsync();
             if (all.Count >= expectedDocuments && all.All(d => d.State is IndexState.Ready or IndexState.Failed))

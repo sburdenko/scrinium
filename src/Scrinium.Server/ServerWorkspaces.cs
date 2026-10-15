@@ -12,8 +12,15 @@ public sealed class ServerWorkspaces : IAsyncDisposable
 
     private readonly Dictionary<WorkspaceId, ServedWorkspace> _served = [];
 
-    public ServerWorkspaces(WorkspaceCatalog catalog, WorkspaceScopeFactory scopes, ServerOptions options)
+    private readonly ILogger<ServerWorkspaces> _logger;
+
+    public ServerWorkspaces(
+        WorkspaceCatalog catalog,
+        WorkspaceScopeFactory scopes,
+        ServerOptions options,
+        ILogger<ServerWorkspaces> logger)
     {
+        _logger = logger;
         Add(scopes, catalog.EnsureDefault("Default"), options.DocumentsFolder, options.ApiKey);
 
         foreach (var configured in options.Workspaces)
@@ -51,6 +58,8 @@ public sealed class ServerWorkspaces : IAsyncDisposable
     private void Add(WorkspaceScopeFactory scopes, Workspace workspace, string? documentsFolder, string? apiKey)
     {
         var scope = scopes.Open(workspace);
+        scope.Library.ProcessingFailed += (id, ex) =>
+            _logger.LogError(ex, "Indexing document {DocumentId} in workspace {Workspace} failed", id, workspace.Id);
         scope.StartWorker();
         _served[workspace.Id] = new ServedWorkspace(scope, documentsFolder, apiKey);
     }
