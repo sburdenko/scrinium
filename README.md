@@ -24,6 +24,7 @@ The screenshots show the desktop app on the [Kestrel Analytics demo documents](d
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
 - **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; two fictional demo companies with 85 questions ship with committed reports, including the failures.
+- **Workspaces that cannot see each other.** Each workspace is a folder with its own database, originals and saved sessions, so "Work" never answers from "Personal", and one server can serve several companies.
 - **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
 - **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
 
@@ -66,6 +67,7 @@ Open <http://localhost:5088> for the chat page. Files in the documents folder ar
 | Retry a failed file | The retry arrow on its row; the row shows the reason |
 | Delete a file | The cross that appears when you hover its row |
 | Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
+| Keep subjects apart | Pick a workspace above the archive, or create one with **+**. Each workspace has its own documents and sessions; the window reopens the last one |
 | Start a new topic | **New question**: earlier answers stay as rows, but follow-ups no longer see them |
 | Go back to an earlier session | Sessions are saved. On an empty window, **Recent sessions** lists them; a click restores the questions, answers and sources, and a follow-up continues that session |
 
@@ -84,6 +86,8 @@ The window has one dark palette and one screen with three columns: archive, ques
 | `GET /api/documents` | Documents and their indexing state; needs the `X-Api-Key` header |
 | `GET /api/health` | Document counts and the state of the model server |
 | `GET /` | The chat page |
+
+Every request also exists under `/w/{workspace}/`, for example `POST /w/kestrel/api/chat` and the chat page at `/w/kestrel/`. Requests without the prefix use the default workspace. A workspace answers only from its own documents, reads only its own sources, and checks its own API key; an unknown workspace answers 404.
 
 ```http
 POST /api/chat
@@ -110,12 +114,23 @@ A question the documents cannot answer returns an empty `sources` list and one `
 
 Set values on the command line (`--Scrinium:ChatModel=gemma3:12b`) or as environment variables (`Scrinium__ChatModel`).
 
+```bash
+dotnet run --project src/Scrinium.Server -- --urls http://localhost:5088 \
+  --Scrinium:DocumentsFolder=demo/steuerberatung-mueller/documents \
+  --Scrinium:Workspaces:0:Id=kestrel \
+  --Scrinium:Workspaces:0:DocumentsFolder=demo/kestrel-analytics/documents
+```
+
+This serves the tax office at <http://localhost:5088> and the analytics vendor at <http://localhost:5088/w/kestrel/>, each from its own database.
+
 | Key | Meaning | Default |
 |---|---|---|
-| `Home` | Folder for the database, originals and settings | `scrinium` |
+| `Home` | Folder for the workspaces (databases, originals) and settings | `scrinium` |
 | `DocumentsFolder` | Folder whose files are indexed at startup | none |
 | `OllamaUrl`, `ChatModel`, `EmbeddingModel` | Override the saved settings | from `settings.json` |
-| `ApiKey` | Enables `GET /api/documents`; without it the endpoint answers 403 | none |
+| `ApiKey` | Enables `GET /api/documents` of the default workspace; without it the endpoint answers 403 | none |
+| `Workspaces:{n}:Id` | Another workspace, served under `/w/{Id}/`: lowercase letters, digits and dashes | none |
+| `Workspaces:{n}:Name`, `DocumentsFolder`, `ApiKey` | Its display name, the folder indexed at startup and the key for its document list | id, none, none |
 | `AllowedOrigins` | Origins allowed to call the API from a browser | none (same origin only) |
 | `ChatRequestsPerMinute` | Limit per client address | 10 |
 | `MaxConcurrentChats` | Answers generated at the same time | 2 |
@@ -264,7 +279,7 @@ flowchart TB
 
 | Project | Job | Outside library |
 |---|---|---|
-| `Scrinium.Core` | Records and interfaces, chunking, the ingestion queue, retrieval, passage location, prompt building, answering. Depends on nothing else in the solution | Microsoft.Extensions.AI (interfaces only) |
+| `Scrinium.Core` | Records and interfaces, workspaces, chunking, the ingestion queue, retrieval, passage location, prompt building, answering. Depends on nothing else in the solution | Microsoft.Extensions.AI (interfaces only) |
 | `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
 | `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
 | `Scrinium.Ollama` | Ollama client registration, status check, model pull | OllamaSharp |
@@ -300,11 +315,12 @@ These are checked by `ArchitectureTests` on every build, not left to review:
 
 | What | Where (macOS) |
 |---|---|
-| Database (documents, vectors, saved sessions) | `~/Library/Application Support/Scrinium/data/scrinium.db` |
-| Original files | `~/Library/Application Support/Scrinium/data/originals/<year>/<month>/` |
+| One workspace (database with documents, vectors and saved sessions; originals) | `~/Library/Application Support/Scrinium/data/workspaces/<workspace>/` |
+| Its database | `…/workspaces/<workspace>/scrinium.db` |
+| Its original files | `…/workspaces/<workspace>/originals/<year>/<month>/` |
 | Settings | `~/Library/Application Support/Scrinium/settings.json` |
 
-Set the `SCRINIUM_DATA` environment variable to use another data folder. Copying the `data` folder is a complete backup.
+Set the `SCRINIUM_DATA` environment variable to use another data folder. Copying the `data` folder is a complete backup; copying one workspace folder backs up that workspace. Data from before workspaces moves into the `default` workspace on first start.
 
 ## Development
 
