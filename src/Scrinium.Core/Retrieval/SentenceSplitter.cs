@@ -5,6 +5,9 @@ public static class SentenceSplitter
     private const int MinLength = 20;
     private const int MaxRunWithoutBreak = 160;
 
+    /// <summary>A Markdown heading names a section; it is evidence only for what it states itself, such as a date.</summary>
+    public static bool IsHeading(string text, PassageSpan span) => text[span.Start] == '#';
+
     public static IReadOnlyList<PassageSpan> Split(string text)
     {
         var raw = new List<PassageSpan>();
@@ -124,7 +127,7 @@ public static class SentenceSplitter
         while (end > start && char.IsWhiteSpace(text[end - 1]))
             end--;
 
-        if (end > start && !IsTableSeparator(text, start, end) && text[start] != '#')
+        if (end > start && !IsTableSeparator(text, start, end))
             spans.Add(new PassageSpan(start, end - start));
     }
 
@@ -135,7 +138,7 @@ public static class SentenceSplitter
 
         foreach (var span in spans)
         {
-            if (text[span.Start] == '|')
+            if (text[span.Start] is '|' or '#')
             {
                 if (carry is { } held)
                     merged.Add(held);
