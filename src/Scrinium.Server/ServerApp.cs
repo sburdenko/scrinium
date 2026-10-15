@@ -30,6 +30,7 @@ public static class ServerApp
         builder.Services.AddScriniumTextExtractors();
         builder.Services.AddScriniumOllama();
         builder.Services.AddSingleton(new ChatGate(options.MaxConcurrentChats));
+        builder.Services.AddSingleton<ServerWorkspaces>();
         builder.Services.AddSingleton<ApiKeyFilter>();
         builder.Services.AddHostedService<DocumentFolderImporter>();
 
@@ -50,7 +51,7 @@ public static class ServerApp
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
-                if (!context.Request.Path.StartsWithSegments("/api/chat"))
+                if (!IsChat(context.Request.Path))
                     return RateLimitPartition.GetNoLimiter("other");
 
                 var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -62,6 +63,9 @@ public static class ServerApp
                 });
             });
         });
+
+    private static bool IsChat(PathString path) =>
+        path.Value?.EndsWith("/api/chat", StringComparison.OrdinalIgnoreCase) == true;
 
     private static void AddCors(IServiceCollection services, ServerOptions options)
     {
@@ -108,9 +112,19 @@ public static class ServerApp
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
-        ChatEndpoint.Map(app);
-        SourcesEndpoint.Map(app);
-        DocumentsEndpoint.Map(app);
-        HealthEndpoint.Map(app);
+        MapApi(app.MapGroup("/api"));
+        MapApi(app.MapGroup($"/w/{{{ServerWorkspaces.RouteKey}}}/api"));
+        app.MapGet($"/w/{{{ServerWorkspaces.RouteKey}}}/", (ServerWorkspaces workspaces, HttpContext http, IWebHostEnvironment environment) =>
+            workspaces.Resolve(http) is null
+                ? WorkspaceResults.Unknown()
+                : Results.File(Path.Combine(environment.WebRootPath, "index.html"), "text/html"));
+    }
+
+    private static void MapApi(IEndpointRouteBuilder api)
+    {
+        ChatEndpoint.Map(api);
+        SourcesEndpoint.Map(api);
+        DocumentsEndpoint.Map(api);
+        HealthEndpoint.Map(api);
     }
 }

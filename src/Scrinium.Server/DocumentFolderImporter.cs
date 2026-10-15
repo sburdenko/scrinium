@@ -1,25 +1,33 @@
 using Scrinium.Core.Documents;
-using Scrinium.Core.Ingestion;
 
 namespace Scrinium.Server;
 
 public sealed class DocumentFolderImporter(
-    DocumentLibrary library,
-    ServerOptions options,
+    ServerWorkspaces workspaces,
     ILogger<DocumentFolderImporter> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken ct)
     {
-        var folder = options.DocumentsFolder;
+        foreach (var served in workspaces.All)
+            await ImportAsync(served, ct);
+    }
+
+    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+
+    private async Task ImportAsync(ServedWorkspace served, CancellationToken ct)
+    {
+        var folder = served.DocumentsFolder;
+        var workspace = served.Scope.Workspace.Id;
         if (string.IsNullOrWhiteSpace(folder))
             return;
 
         if (!Directory.Exists(folder))
         {
-            logger.LogWarning("Documents folder {Folder} does not exist, nothing to import.", folder);
+            logger.LogWarning("Documents folder {Folder} of workspace {Workspace} does not exist, nothing to import.", folder, workspace);
             return;
         }
 
+        var library = served.Scope.Library;
         var known = (await library.ListAsync(ct)).Select(d => d.Title).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(folder).Where(DocumentKinds.IsSupported).Order())
         {
@@ -27,9 +35,7 @@ public sealed class DocumentFolderImporter(
                 continue;
 
             await library.ImportAsync(file, ct);
-            logger.LogInformation("Queued {File} for indexing.", Path.GetFileName(file));
+            logger.LogInformation("Queued {File} for indexing in workspace {Workspace}.", Path.GetFileName(file), workspace);
         }
     }
-
-    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
 }

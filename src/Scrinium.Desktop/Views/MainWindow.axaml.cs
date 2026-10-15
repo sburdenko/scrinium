@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         if (paths is not { Count: > 0 })
             return;
 
-        await main.Sources.ImportPathsAsync(paths);
+        if (main.Active is { } active)
+            await active.Sources.ImportPathsAsync(paths);
     }
 }

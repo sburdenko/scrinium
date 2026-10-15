@@ -4,7 +4,7 @@
              x:Class="Scrinium.Desktop.Views.ArchiveView"
              x:DataType="vm:SourcesViewModel"
              x:Name="Root">
-  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0">
+  <Border>
     <Grid RowDefinitions="Auto,*,Auto">
       <StackPanel Grid.Row="0" Spacing="10" Margin="20,16,20,12">
         <Grid ColumnDefinitions="*,Auto">

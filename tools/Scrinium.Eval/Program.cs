@@ -4,6 +4,7 @@ using Scrinium.Core.Chat;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Ingestion;
 using Scrinium.Core.Settings;
+using Scrinium.Core.Workspaces;
 using Scrinium.Eval;
 using Scrinium.Extraction;
 using Scrinium.Ollama;
@@ -50,15 +51,14 @@ try
         .Where(c => options.Only is null || options.Only.Contains(c.Id))
         .ToList();
     var files = Directory.GetFiles(options.Documents).Where(DocumentKinds.IsSupported).Order().ToList();
-    var runner = new EvaluationRunner(
-        provider.GetRequiredService<DocumentLibrary>(),
-        provider.GetRequiredService<IngestionPipeline>(),
-        provider.GetRequiredService<AnswerService>());
+    var catalog = provider.GetRequiredService<WorkspaceCatalog>();
+    await using var workspace = provider.GetRequiredService<WorkspaceScopeFactory>().Open(catalog.EnsureDefault("Evaluation"));
+    var runner = new EvaluationRunner(workspace.Library, workspace.Pipeline, workspace.Answers);
 
     Console.WriteLine($"Indexing {files.Count} documents with {settings.Current.EmbeddingModel}…");
     await runner.IndexAsync(files);
 
-    var library = provider.GetRequiredService<DocumentLibrary>();
+    var library = workspace.Library;
     var failedDocuments = (await library.ListAsync()).Where(d => d.State is IndexState.Failed).ToList();
     if (failedDocuments.Count > 0)
     {

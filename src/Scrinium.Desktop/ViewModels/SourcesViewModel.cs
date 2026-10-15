@@ -9,7 +9,7 @@ using Scrinium.Desktop.Services;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public sealed partial class SourcesViewModel : ObservableObject
+public sealed partial class SourcesViewModel : ObservableObject, IDisposable
 {
     private readonly DocumentLibrary _library;
     private readonly ISettingsProvider _settings;
@@ -26,8 +26,10 @@ public sealed partial class SourcesViewModel : ObservableObject
         _settings = settings;
         _picker = picker;
         _panel = panel;
-        _library.DocumentChanged += _ => ScheduleReload();
+        _library.DocumentChanged += OnDocumentChanged;
     }
+
+    public void Dispose() => _library.DocumentChanged -= OnDocumentChanged;
 
     public ObservableCollection<SourceItemViewModel> Items { get; } = [];
 
@@ -109,6 +111,8 @@ public sealed partial class SourcesViewModel : ObservableObject
         item.IsOpenInOriginal = _openDocumentId == item.Id;
     }
 
+    private void OnDocumentChanged(Guid documentId) => ScheduleReload();
+
     private void ScheduleReload()
     {
         if (Interlocked.Exchange(ref _reloadScheduled, 1) == 1)
@@ -123,7 +127,16 @@ public sealed partial class SourcesViewModel : ObservableObject
 
     private async Task ReloadAsync()
     {
-        _documents = await _library.ListAsync();
+        try
+        {
+            _documents = await _library.ListAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Data.Common.DbException)
+        {
+            LastError = $"Could not read the archive: {ex.Message}";
+            return;
+        }
+
         Rebuild();
     }
 

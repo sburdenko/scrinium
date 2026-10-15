@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Scrinium.Core.Documents;
-using Scrinium.Core.Ingestion;
 using Scrinium.Server;
 
 namespace Scrinium.Tests.Support;
@@ -40,7 +39,8 @@ public sealed class ServerHarness : IAsyncDisposable
     public static async Task<ServerHarness> StartAsync(
         IReadOnlyDictionary<string, string>? settings = null,
         string[]? answerTokens = null,
-        Action<string>? seedDocuments = null)
+        Action<string>? seedDocuments = null,
+        IReadOnlyDictionary<string, Action<string>>? workspaces = null)
     {
         var temp = new TempDirectory();
         var home = Path.Combine(temp.Path, "home");
@@ -51,6 +51,17 @@ public sealed class ServerHarness : IAsyncDisposable
         var args = new List<string> { $"--Scrinium:Home={home}", $"--Scrinium:DocumentsFolder={documents}" };
         foreach (var (key, value) in settings ?? new Dictionary<string, string>())
             args.Add($"--Scrinium:{key}={value}");
+
+        var index = 0;
+        foreach (var (id, seed) in workspaces ?? new Dictionary<string, Action<string>>())
+        {
+            var folder = Path.Combine(temp.Path, "documents-" + id);
+            Directory.CreateDirectory(folder);
+            seed(folder);
+            args.Add($"--Scrinium:Workspaces:{index}:Id={id}");
+            args.Add($"--Scrinium:Workspaces:{index}:DocumentsFolder={folder}");
+            index++;
+        }
 
         var chat = new FakeChatClient(answerTokens ?? ["Louder ", "in September ", "[1]."]);
         var app = ServerApp.Build(args.ToArray(), builder =>
@@ -64,9 +75,13 @@ public sealed class ServerHarness : IAsyncDisposable
         return new ServerHarness(temp, app, app.GetTestClient(), chat, home, documents);
     }
 
-    public async Task WaitUntilReadyAsync(int expectedDocuments)
+    public async Task WaitUntilReadyAsync(int expectedDocuments, string? workspace = null)
     {
-        var library = Services.GetRequiredService<DocumentLibrary>();
+        var workspaces = Services.GetRequiredService<ServerWorkspaces>();
+        var served = workspace is null
+            ? workspaces.Default
+            : workspaces.All.Single(w => w.Scope.Workspace.Id.Value == workspace);
+        var library = served.Scope.Library;
         for (var attempt = 0; attempt < 200; attempt++)
         {
             var all = await library.ListAsync();
@@ -78,9 +93,10 @@ public sealed class ServerHarness : IAsyncDisposable
         throw new TimeoutException("Documents were not indexed in time.");
     }
 
-    public async Task<IReadOnlyList<SseEvent>> ChatAsync(string question, object? history = null)
+    public async Task<IReadOnlyList<SseEvent>> ChatAsync(string question, object? history = null, string? workspace = null)
     {
-        var response = await Client.PostAsJsonAsync("/api/chat", new { question, history });
+        var path = workspace is null ? "/api/chat" : $"/w/{workspace}/api/chat";
+        var response = await Client.PostAsJsonAsync(path, new { question, history });
         response.EnsureSuccessStatusCode();
         return SseEvent.Parse(await response.Content.ReadAsStringAsync());
     }

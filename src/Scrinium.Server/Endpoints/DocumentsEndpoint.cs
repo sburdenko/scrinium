@@ -1,5 +1,4 @@
 using Scrinium.Core.Documents;
-using Scrinium.Core.Ingestion;
 using Scrinium.Server.Security;
 
 namespace Scrinium.Server.Endpoints;
@@ -7,11 +6,14 @@ namespace Scrinium.Server.Endpoints;
 internal static class DocumentsEndpoint
 {
     public static void Map(IEndpointRouteBuilder routes) =>
-        routes.MapGet("/api/documents", HandleAsync).AddEndpointFilter<ApiKeyFilter>();
+        routes.MapGet("/documents", HandleAsync).AddEndpointFilter<ApiKeyFilter>();
 
-    private static async Task<IResult> HandleAsync(DocumentLibrary library, CancellationToken ct)
+    private static async Task<IResult> HandleAsync(ServerWorkspaces workspaces, HttpContext http, CancellationToken ct)
     {
-        var documents = await library.ListAsync(ct);
+        if (workspaces.Resolve(http) is not { } served)
+            return WorkspaceResults.Unknown();
+
+        var documents = await served.Scope.Library.ListAsync(ct);
         return TypedResults.Ok(documents.Select(ToDto).ToList());
     }
 

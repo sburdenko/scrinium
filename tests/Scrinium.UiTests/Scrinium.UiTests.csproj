@@ -10,7 +10,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <Using Include="Xunit" />
-    <Compile Include="..\Scrinium.Tests\Support\TestApp.cs" Link="Support\TestApp.cs" />
+    <Compile Include="..\Scrinium.Tests\Support\TestWorkspaces.cs" Link="Support\TestWorkspaces.cs" />
     <Compile Include="..\Scrinium.Tests\Support\TempDirectory.cs" Link="Support\TempDirectory.cs" />
     <Compile Include="..\Scrinium.Tests\Support\FakeChatClient.cs" Link="Support\FakeChatClient.cs" />
     <Compile Include="..\Scrinium.Tests\Support\FakeEmbeddingGenerator.cs" Link="Support\FakeEmbeddingGenerator.cs" />

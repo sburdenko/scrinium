@@ -16,7 +16,7 @@ public sealed class WorkbenchWindowTests
 
     private static async Task<(DesktopHarness Harness, WindowDriver Driver)> OpenWithTwoPlansAsync(string reply)
     {
-        var harness = new DesktopHarness(new FakeChatClient(reply));
+        var harness = await DesktopHarness.CreateAsync(new FakeChatClient(reply));
         await harness.AddDocumentAsync("free.txt", FreePlan);
         await harness.AddDocumentAsync("team.txt", TeamPlan);
         return (harness, WindowDriver.Open(harness));
@@ -31,12 +31,12 @@ public sealed class WorkbenchWindowTests
     }
 
     [AvaloniaFact]
-    public void The_window_has_the_archive_the_conversation_and_the_original_side_by_side()
+    public async Task The_window_has_the_archive_the_conversation_and_the_original_side_by_side()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var driver = WindowDriver.Open(harness);
 
-        Assert.Equal(280, driver.Find<ArchiveView>(_ => true, "archive").Bounds.Width);
+        Assert.Equal(280, driver.Find<Border>(b => b.Name == "ArchiveColumn", "archive column").Bounds.Width);
         Assert.Equal(420, driver.Find<RightPanelView>(_ => true, "original").Bounds.Width);
         Assert.Equal(1320 - 280 - 420, driver.Find<ChatView>(_ => true, "chat").Bounds.Width);
         Assert.True(driver.Shows("Click a citation number to see the passage"));
@@ -74,7 +74,7 @@ public sealed class WorkbenchWindowTests
     [AvaloniaFact]
     public async Task Files_dropped_on_the_window_are_added_to_the_archive()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var driver = WindowDriver.Open(harness);
         var first = harness.App.WriteFile("dropped-one.md", "# One\nFirst dropped note.");
         var second = harness.App.WriteFile("dropped-two.txt", "Second dropped note.");
@@ -89,7 +89,7 @@ public sealed class WorkbenchWindowTests
     [AvaloniaFact]
     public async Task A_dropped_file_of_an_unsupported_type_is_reported_in_the_archive()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var driver = WindowDriver.Open(harness);
         var image = harness.App.WriteFile("photo.jpg", "not really a photo");
 
@@ -186,7 +186,7 @@ public sealed class WorkbenchWindowTests
     [AvaloniaFact]
     public async Task The_settings_button_toggles_the_settings()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var driver = WindowDriver.Open(harness);
 
         driver.Click(driver.Button("Settings"));
@@ -233,7 +233,7 @@ public sealed class WorkbenchWindowTests
         await AskThroughTheComposerAsync(driver, harness, "free plan requests per minute");
         driver.Window.Close();
 
-        var reopened = harness.Reopen();
+        var reopened = await harness.ReopenAsync();
         await reopened.Chat.LoadRecentSessionsAsync();
         var again = WindowDriver.Open(reopened);
         Assert.True(again.Shows("RECENT SESSIONS"));
@@ -261,5 +261,42 @@ public sealed class WorkbenchWindowTests
             .ToList();
 
         Assert.Empty(unnamed);
+    }
+}
+
+public sealed class WorkspacePickerTests
+{
+    [AvaloniaFact]
+    public async Task A_workspace_is_created_from_the_window_and_opens_empty()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        var driver = WindowDriver.Open(harness);
+        Assert.True(driver.Shows("note.txt"));
+
+        driver.Click(driver.Button("New workspace"));
+        var name = driver.Find<TextBox>(t => t.Name == "WorkspaceName", "workspace name box");
+        driver.Type(name, "Kestrel Analytics");
+        driver.Press(Key.Enter);
+        await driver.UntilAsync(() => harness.Active.Workspace.Name == "Kestrel Analytics", "the new workspace");
+
+        Assert.True(driver.Shows("Nothing here yet"));
+        Assert.False(driver.Shows("note.txt"));
+        Assert.True(driver.Shows("Kestrel Analytics"));
+    }
+
+    [AvaloniaFact]
+    public async Task Escape_cancels_naming_a_workspace()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        var driver = WindowDriver.Open(harness);
+
+        driver.Click(driver.Button("New workspace"));
+        var name = driver.Find<TextBox>(t => t.Name == "WorkspaceName", "workspace name box");
+        driver.Type(name, "Draft");
+        driver.Press(Key.Escape);
+
+        Assert.False(harness.Main.IsNamingWorkspace);
+        Assert.Single(harness.Main.Workspaces);
     }
 }

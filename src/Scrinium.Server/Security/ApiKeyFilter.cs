@@ -3,19 +3,23 @@ using System.Text;
 
 namespace Scrinium.Server.Security;
 
-public sealed class ApiKeyFilter(ServerOptions options) : IEndpointFilter
+public sealed class ApiKeyFilter(ServerWorkspaces workspaces) : IEndpointFilter
 {
     public const string HeaderName = "X-Api-Key";
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        if (string.IsNullOrEmpty(options.ApiKey))
+        var served = workspaces.Resolve(context.HttpContext);
+        if (served is null)
+            return WorkspaceResults.Unknown();
+
+        if (string.IsNullOrEmpty(served.ApiKey))
             return TypedResults.Json(new ErrorDto("Admin endpoints are disabled: no API key is configured."), statusCode: 403);
 
         var supplied = context.HttpContext.Request.Headers[HeaderName].ToString();
         var matches = CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(supplied),
-            Encoding.UTF8.GetBytes(options.ApiKey));
+            Encoding.UTF8.GetBytes(served.ApiKey));
 
         return matches
             ? await next(context)
