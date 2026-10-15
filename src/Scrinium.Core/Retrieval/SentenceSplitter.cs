@@ -124,7 +124,7 @@ public static class SentenceSplitter
         while (end > start && char.IsWhiteSpace(text[end - 1]))
             end--;
 
-        if (end > start && !IsTableSeparator(text, start, end))
+        if (end > start && !IsTableSeparator(text, start, end) && text[start] != '#')
             spans.Add(new PassageSpan(start, end - start));
     }
 
@@ -135,7 +135,7 @@ public static class SentenceSplitter
 
         foreach (var span in spans)
         {
-            if (text[span.Start] is '|' or '#')
+            if (text[span.Start] == '|')
             {
                 if (carry is { } held)
                     merged.Add(held);

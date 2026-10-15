@@ -118,13 +118,13 @@ public class SentenceSplitterTests
     }
 
     [Fact]
-    public void A_markdown_heading_is_a_passage_of_its_own()
+    public void A_markdown_heading_is_never_a_passage_and_does_not_stick_to_the_next_one()
     {
-        var text = "## Availability\n\nPaid plans are covered by a monthly availability target of 99.5 percent.";
+        var text = "## Kann ich Unterlagen digital einreichen?\n\nJa. Nutzen Sie das Mandantenportal oder senden Sie die Dateien verschlüsselt.";
 
         var sentences = Texts(text);
 
-        Assert.Equal(["## Availability", "Paid plans are covered by a monthly availability target of 99.5 percent."], sentences);
+        Assert.Equal(["Ja. Nutzen Sie das Mandantenportal oder senden Sie die Dateien verschlüsselt."], sentences);
     }
 
     [Fact]
