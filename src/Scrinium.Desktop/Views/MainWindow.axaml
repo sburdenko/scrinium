@@ -8,7 +8,7 @@
         Icon="avares://Scrinium.Desktop/Assets/Icon/scrinium.png"
         Width="1320" Height="820" MinWidth="980" MinHeight="560"
         WindowStartupLocation="CenterScreen">
-  <Grid x:Name="Frame" RowDefinitions="56,Auto,*" ColumnDefinitions="280,*,420">
+  <Grid x:Name="Frame" RowDefinitions="56,Auto,*" ColumnDefinitions="280,*,420" Background="Transparent">
     <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="{DynamicResource Ink}" BorderThickness="0,0,0,2">
       <Grid ColumnDefinitions="280,*,420">
         <Border Grid.Column="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0" Padding="20,0">

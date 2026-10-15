@@ -22,6 +22,7 @@
                 <DataTemplate x:DataType="vm:SourceItemViewModel">
                   <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
                     <Button Classes="row" Classes.open="{Binding IsOpenInOriginal}"
+                            AutomationProperties.Name="{Binding Title}"
                             Command="{Binding #Root.((vm:SourcesViewModel)DataContext).OpenCommand}"
                             CommandParameter="{Binding}">
                       <Grid ColumnDefinitions="24,*,Auto" ColumnSpacing="8" Margin="20,9">
@@ -34,13 +35,13 @@
                                      Classes="muted" Classes.failed="{Binding IsFailed}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                          <Button Classes="icon small" ToolTip.Tip="Retry" IsVisible="{Binding CanRetry}"
+                          <Button Classes="icon small" ToolTip.Tip="Retry" AutomationProperties.Name="Retry" IsVisible="{Binding CanRetry}"
                                   Command="{Binding #Root.((vm:SourcesViewModel)DataContext).RetryCommand}"
                                   CommandParameter="{Binding}">
                             <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconRotateCcw}"
                                   Stroke="{DynamicResource Accent}" />
                           </Button>
-                          <Button Classes="icon small" ToolTip.Tip="Delete"
+                          <Button Classes="icon small" ToolTip.Tip="Delete" AutomationProperties.Name="Delete"
                                   IsVisible="{Binding $parent[Button].IsPointerOver}"
                                   Command="{Binding #Root.((vm:SourcesViewModel)DataContext).DeleteCommand}"
                                   CommandParameter="{Binding}">
@@ -71,12 +72,14 @@
                 IsVisible="{Binding LastError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="{Binding LastError}" TextWrapping="Wrap" FontSize="13" />
-            <Button Grid.Column="1" Classes="icon small" Command="{Binding DismissErrorCommand}" VerticalAlignment="Top">
+            <Button Grid.Column="1" Classes="icon small" Command="{Binding DismissErrorCommand}" VerticalAlignment="Top"
+                    AutomationProperties.Name="Dismiss">
               <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconX}" />
             </Button>
           </Grid>
         </Border>
-        <Button Classes="primary" Command="{Binding AddFilesCommand}" HorizontalAlignment="Stretch">
+        <Button Classes="primary" Command="{Binding AddFilesCommand}" HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Add files">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Path Classes="icon" Width="16" Height="16" Stroke="{DynamicResource OnAccent}"
                   Data="{StaticResource IconPlus}" />
