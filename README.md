@@ -67,6 +67,7 @@ Open <http://localhost:5088> for the chat page. Files in the documents folder ar
 | Delete a file | The cross that appears when you hover its row |
 | Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
 | Start a new topic | **New question**: earlier answers stay as rows, but follow-ups no longer see them |
+| Go back to an earlier session | Sessions are saved. On an empty window, **Recent sessions** lists them; a click restores the questions, answers and sources, and a follow-up continues that session |
 
 The window has one dark palette and one screen with three columns: archive, question and answer, original. The app icon is a pair of brackets around a one: a citation.
 
@@ -289,7 +290,7 @@ These are checked by `ArchitectureTests` on every build, not left to review:
 | Extraction | `.txt` and `.md` read as UTF-8. PDFs are read page by page with PdfPig; a PDF without a text layer fails with a clear message |
 | Chunking | Recursive: headings, blank lines, sentences, words. About 400 tokens per chunk with 50 tokens of overlap. Every chunk keeps its page and character offset |
 | Embeddings | Batches of 32 through `IEmbeddingGenerator`. The model name is stored per document, and search only uses documents indexed with the current model |
-| Storage | One SQLite file. Vectors are normalized `float32` blobs compared by cosine similarity |
+| Storage | One SQLite file. Vectors are normalized `float32` blobs compared by cosine similarity. Finished exchanges are saved per session with their citations; failed answers are not saved |
 | Retrieval | Top 6 chunks, similarity at least 0.35 and within 0.10 of the best. Neighbouring chunks are added to the context up to about 3000 tokens |
 | Citations | The sentence closest to the question inside each hit. A line wrap inside a PDF sentence does not split it; list items and lines ending in punctuation do |
 | Answering | Last 6 messages plus the numbered fragments go to `IChatClient`; the reply is streamed |
@@ -299,7 +300,7 @@ These are checked by `ArchitectureTests` on every build, not left to review:
 
 | What | Where (macOS) |
 |---|---|
-| Database | `~/Library/Application Support/Scrinium/data/scrinium.db` |
+| Database (documents, vectors, saved sessions) | `~/Library/Application Support/Scrinium/data/scrinium.db` |
 | Original files | `~/Library/Application Support/Scrinium/data/originals/<year>/<month>/` |
 | Settings | `~/Library/Application Support/Scrinium/settings.json` |
 
@@ -314,6 +315,16 @@ dotnet test
 
 The SDK version is pinned in `global.json` and warnings are errors. The tests need no Ollama: models are replaced by small fakes, and continuous integration builds and tests on macOS, Windows and Linux.
 
+`tests/Scrinium.UiTests` drives the real window without a screen, through Avalonia's headless platform: it types into the composer, presses Enter, clicks citation cells and Previous / Next, hovers archive rows, opens and closes the settings, drops files onto the window, and checks that every button has a name a screen reader can read.
+
+To build a standalone `Scrinium.app` with its icon (Apple Silicon):
+
+```bash
+tools/bundle-macos.sh
+```
+
+It publishes a self-contained build into `dist/Scrinium.app`, signs it ad hoc and zips it next to it.
+
 ```
 src/
   Scrinium.Core/         records, chunking, ingestion, retrieval, prompt, answering
@@ -324,11 +335,14 @@ src/
   Scrinium.Server/       ASP.NET Core API and chat page
 tools/
   Scrinium.Eval/         question-set runner, scoring and reports
+  bundle-macos.sh        builds dist/Scrinium.app
 demo/
   steuerberatung-mueller/  fictional German tax office: documents, questions, reports
   kestrel-analytics/       fictional analytics vendor, a harder set: conflicts, tables, injection, follow-ups
 tests/
   Scrinium.Tests/        unit, architecture, composition and server tests
+  Scrinium.UiTests/      headless tests of the desktop window
+packaging/macos/         Info.plist for the app bundle
 docs/
   architecture.md        the same architecture for non-programmers
 ```
