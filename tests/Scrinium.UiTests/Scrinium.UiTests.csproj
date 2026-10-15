@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <Using Include="Xunit" />
+    <Compile Include="..\Scrinium.Tests\Support\TestApp.cs" Link="Support\TestApp.cs" />
+    <Compile Include="..\Scrinium.Tests\Support\TempDirectory.cs" Link="Support\TempDirectory.cs" />
+    <Compile Include="..\Scrinium.Tests\Support\FakeChatClient.cs" Link="Support\FakeChatClient.cs" />
+    <Compile Include="..\Scrinium.Tests\Support\FakeEmbeddingGenerator.cs" Link="Support\FakeEmbeddingGenerator.cs" />
+    <Compile Include="..\Scrinium.Tests\Support\DesktopHarness.cs" Link="Support\DesktopHarness.cs" />
+    <ProjectReference Include="..\..\src\Scrinium.Core\Scrinium.Core.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Storage\Scrinium.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Extraction\Scrinium.Extraction.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Ollama\Scrinium.Ollama.csproj" />
+    <ProjectReference Include="..\..\src\Scrinium.Desktop\Scrinium.Desktop.csproj" />
+  </ItemGroup>
+</Project>
