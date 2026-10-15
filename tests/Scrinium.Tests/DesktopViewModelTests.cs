@@ -637,6 +637,7 @@ public sealed class WorkspaceSwitchingTests
     public async Task An_unreadable_archive_is_reported_instead_of_crashing_the_window()
     {
         using var harness = await DesktopHarness.CreateAsync();
+        await harness.Active.Scope.DisposeAsync();
         Directory.Delete(harness.Active.Scope.Paths.Root, recursive: true);
 
         await harness.Sources.InitializeAsync();
