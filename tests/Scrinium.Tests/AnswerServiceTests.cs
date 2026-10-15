@@ -193,4 +193,41 @@ public sealed class AnswerServiceTests : IDisposable
 
         Assert.Equal("Да", Text(events));
     }
+
+    [Fact]
+    public async Task A_decline_marker_after_an_answer_turns_it_into_a_decline_without_sources()
+    {
+        var events = await AskWithAsync(["Der Business-Tarif kostet 199 Euro [1]. ", "Zum Enterprise-Tarif steht nichts da. ", "[[NONE]]"]);
+
+        var declined = Assert.IsType<AnswerEvent.Declined>(events[^1]);
+        Assert.Equal("Der Business-Tarif kostet 199 Euro. Zum Enterprise-Tarif steht nichts da.", declined.Text);
+        Assert.Empty(events.OfType<AnswerEvent.SourcesRefined>());
+    }
+
+    [Fact]
+    public async Task A_late_decline_marker_is_never_shown_even_when_it_arrives_in_pieces()
+    {
+        var events = await AskWithAsync(["Nothing about that ", "[", "[NO", "NE", "]]", " here."]);
+
+        Assert.DoesNotContain("[[", Text(events));
+        Assert.DoesNotContain("NONE", Text(events));
+        Assert.Equal("Nothing about that here.", Assert.IsType<AnswerEvent.Declined>(events[^1]).Text);
+    }
+
+    [Fact]
+    public async Task Double_brackets_that_are_not_the_marker_are_shown_as_they_are()
+    {
+        var events = await AskWithAsync(["Use ", "[[", "brackets]] ", "here [1]."]);
+
+        Assert.Equal("Use [[brackets]] here [1].", Text(events));
+        Assert.Empty(events.OfType<AnswerEvent.Declined>());
+    }
+
+    [Fact]
+    public async Task A_citation_split_across_tokens_still_streams_whole()
+    {
+        var events = await AskWithAsync(["Мотор шумел ", "[", "1", "]."]);
+
+        Assert.Equal("Мотор шумел [1].", Text(events));
+    }
 }
