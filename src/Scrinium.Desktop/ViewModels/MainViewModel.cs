@@ -1,25 +1,33 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Scrinium.Core.Settings;
 
 namespace Scrinium.Desktop.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject
 {
+    private readonly SettingsService _settings;
+
     public MainViewModel(
         SourcesViewModel sources,
         ChatViewModel chat,
         OllamaBannerViewModel banner,
-        PanelHost panel)
+        PanelHost panel,
+        SettingsService settings)
     {
         Sources = sources;
         Chat = chat;
         Banner = banner;
         Panel = panel;
 
-        sources.PropertyChanged += (_, e) =>
+        _settings = settings;
+        settings.Changed += _ => OnPropertyChanged(nameof(ModelLine));
+
+        chat.CitationStateChanged += RefreshArchiveMarks;
+        panel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SourcesViewModel.FailedCount))
-                OnPropertyChanged(nameof(FailureBadge));
+            if (e.PropertyName == nameof(PanelHost.Current))
+                RefreshArchiveMarks();
         };
     }
 
@@ -31,42 +39,23 @@ public sealed partial class MainViewModel : ObservableObject
 
     public PanelHost Panel { get; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsAsk), nameof(IsArchive))]
-    private AppSection _section = AppSection.Ask;
-
-    public bool IsAsk => Section == AppSection.Ask;
-
-    public bool IsArchive => Section == AppSection.Archive;
-
-    public string? FailureBadge => Sources.FailedCount > 0 ? $"{Sources.FailedCount} failed" : null;
+    public string ModelLine => $"Local · {_settings.Current.ChatModel}";
 
     public async Task InitializeAsync()
     {
         await Sources.InitializeAsync();
-        if (Sources.IsEmpty)
-            Section = AppSection.Archive;
-
         Banner.Start();
     }
 
     [RelayCommand]
-    private void ShowAsk() => Section = AppSection.Ask;
+    private void NewQuestion() => Chat.NewQuestionCommand.Execute(null);
 
     [RelayCommand]
-    private void ShowArchive() => Section = AppSection.Archive;
+    private void ToggleSettings() => Panel.ShowSettings();
 
-    [RelayCommand]
-    private void NewChat()
+    private void RefreshArchiveMarks()
     {
-        Chat.NewChatCommand.Execute(null);
-        Section = AppSection.Ask;
-    }
-
-    [RelayCommand]
-    private void ToggleSettings()
-    {
-        Section = AppSection.Ask;
-        Panel.ShowSettings();
+        var open = (Panel.Current as PreviewPanelViewModel)?.DocumentId;
+        Sources.Mark(Chat.FocusedExchange?.Answer.CitedCitations ?? [], open);
     }
 }

@@ -3,130 +3,112 @@
              xmlns:vm="using:Scrinium.Desktop.ViewModels"
              xmlns:ctl="using:Scrinium.Desktop.Controls"
              x:Class="Scrinium.Desktop.Views.RightPanelView"
-             x:DataType="vm:MainViewModel">
-  <Grid>
-    <Button x:Name="Rail" Width="44" Classes="row" IsVisible="{Binding Panel.IsCollapsed}"
-            Command="{Binding Chat.ExpandOriginalCommand}" ToolTip.Tip="Show original" Padding="0">
-      <Border Background="{DynamicResource Sidebar}" BorderBrush="{DynamicResource Line}" BorderThickness="2,0,0,0">
-        <StackPanel Spacing="14" Margin="0,16,0,0" HorizontalAlignment="Center">
-          <Path Classes="icon" Data="{StaticResource IconPanelRightOpen}" Stroke="{DynamicResource Accent}" />
-          <LayoutTransformControl HorizontalAlignment="Center">
-            <LayoutTransformControl.LayoutTransform>
-              <RotateTransform Angle="90" />
-            </LayoutTransformControl.LayoutTransform>
-            <TextBlock Text="ORIGINAL" FontSize="11" FontWeight="ExtraBold" LetterSpacing="0.9"
-                       Foreground="{DynamicResource InkMuted}" />
-          </LayoutTransformControl>
-        </StackPanel>
-      </Border>
-    </Button>
+             x:DataType="vm:PanelHost">
+  <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}" BorderThickness="2,0,0,0">
+    <ContentControl Content="{Binding Current}">
+      <ContentControl.DataTemplates>
+        <DataTemplate x:DataType="vm:PreviewPanelViewModel">
+          <Grid RowDefinitions="Auto,*,Auto,Auto">
+            <Border Grid.Row="0" IsVisible="{Binding ShowsText}" BorderBrush="{DynamicResource Line}"
+                    BorderThickness="0,0,0,2" Padding="24,20,24,16">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="kicker" Text="{Binding Kicker}" />
+                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="ExtraBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding LocationLabel}" Classes="muted small"
+                           IsVisible="{Binding LocationLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </StackPanel>
+            </Border>
 
-    <Border Width="440" IsVisible="{Binding Panel.IsOpen}" Background="{DynamicResource Surface}"
-            BorderBrush="{DynamicResource Line}" BorderThickness="2,0,0,0">
-      <ContentControl Content="{Binding Panel.Current}">
-        <ContentControl.DataTemplates>
-          <DataTemplate x:DataType="vm:PreviewPanelViewModel">
-            <Grid RowDefinitions="Auto,Auto,*">
-              <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4" Margin="16,16,16,12">
-                <StackPanel Spacing="3">
-                  <TextBlock Classes="label" Text="{Binding Kicker}" Foreground="{DynamicResource Accent}" />
-                  <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="ExtraBold" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding PageLabel}" Classes="muted small" />
-                </StackPanel>
-                <Button Grid.Column="1" Classes="ghost" IsVisible="{Binding IsAvailable}"
-                        Command="{Binding OpenOriginalCommand}" VerticalAlignment="Top">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="Open file" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" />
-                    <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconExternalLink}"
-                          Stroke="{DynamicResource Accent}" />
+            <Grid Grid.Row="1">
+              <TextBlock IsVisible="{Binding IsEmpty}" Classes="muted" FontSize="14" TextWrapping="Wrap"
+                         Margin="24" Text="Click a citation number to see the passage" />
+              <TextBlock IsVisible="{Binding IsUnavailable}" Classes="muted" FontSize="14" TextWrapping="Wrap"
+                         Margin="24" Text="The original is unavailable: the file was removed or cannot be read." />
+              <ctl:HighlightedTextViewer IsVisible="{Binding ShowsText}"
+                                         Before="{Binding Before}" Highlight="{Binding Highlight}"
+                                         After="{Binding After}" />
+            </Grid>
+
+            <Border Grid.Row="2" IsVisible="{Binding HasPager}" BorderBrush="{DynamicResource Line}"
+                    BorderThickness="0,2,0,0">
+              <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0" Classes="pager" Command="{Binding PreviousCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Classes="icon" Data="{StaticResource IconArrowLeft}" />
+                    <TextBlock Text="Previous" />
                   </StackPanel>
                 </Button>
-                <Button Grid.Column="2" Classes="icon" Width="32" Height="32" ToolTip.Tip="Hide original"
-                        Command="{Binding CloseCommand}" VerticalAlignment="Top">
-                  <Path Classes="icon" Data="{StaticResource IconPanelRightClose}" Stroke="{DynamicResource Ink}" />
+                <Border Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+                  <Button Classes="pager" Command="{Binding NextCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="Next" />
+                      <Path Classes="icon" Data="{StaticResource IconArrowRight}" />
+                    </StackPanel>
+                  </Button>
+                </Border>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="3" IsVisible="{Binding CanOpenFile}" BorderBrush="{DynamicResource Line}"
+                    BorderThickness="0,1,0,0" Padding="20,10">
+              <Button Classes="ghost" HorizontalAlignment="Left" Command="{Binding OpenOriginalCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="Open file" Foreground="{DynamicResource Accent}" />
+                  <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconExternalLink}"
+                        Stroke="{DynamicResource Accent}" />
+                </StackPanel>
+              </Button>
+            </Border>
+          </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:DataType="vm:SettingsPanelViewModel">
+          <ScrollViewer>
+            <StackPanel Margin="24,20,24,24" Spacing="16">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="label" Text="SETTINGS" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="icon small" Command="{Binding CloseCommand}" ToolTip.Tip="Close settings">
+                  <Path Classes="icon" Data="{StaticResource IconX}" />
                 </Button>
               </Grid>
 
-              <Border Grid.Row="1" Margin="16,0" BorderBrush="{DynamicResource Line}" BorderThickness="1"
-                      IsVisible="{Binding HasSwitcher}">
-                <ItemsControl ItemsSource="{Binding Citations}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <UniformGrid Rows="1" />
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:CitationViewModel">
-                      <Button Classes="row" Classes.active="{Binding IsActive}"
-                              Command="{Binding $parent[ItemsControl].((vm:PreviewPanelViewModel)DataContext).SwitchToCommand}"
-                              CommandParameter="{Binding}">
-                        <TextBlock Text="{Binding Number}" FontSize="13" FontWeight="ExtraBold" Margin="10,6,0,6" />
-                      </Button>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Border>
-
-              <Border Grid.Row="2" Margin="16,12,16,16" Background="{DynamicResource Bg}" Padding="20">
-                <Grid>
-                  <TextBlock IsVisible="{Binding !IsAvailable}" Classes="muted" TextWrapping="Wrap"
-                             Text="The original is unavailable: the file was removed or cannot be read." />
-                  <ctl:HighlightedTextViewer IsVisible="{Binding IsAvailable}"
-                                             Before="{Binding Before}" Highlight="{Binding Highlight}"
-                                             After="{Binding After}" />
-                </Grid>
-              </Border>
-            </Grid>
-          </DataTemplate>
-
-          <DataTemplate x:DataType="vm:SettingsPanelViewModel">
-            <ScrollViewer>
-              <StackPanel Margin="16,16,16,24" Spacing="16">
-                <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Classes="label" Text="SETTINGS" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Classes="icon" Width="32" Height="32" Command="{Binding CloseCommand}">
-                    <Path Classes="icon" Data="{StaticResource IconPanelRightClose}" Stroke="{DynamicResource Ink}" />
-                  </Button>
-                </Grid>
-
-                <StackPanel Spacing="6">
-                  <TextBlock Classes="label" Text="ANSWER MODEL" />
-                  <ComboBox ItemsSource="{Binding ChatModels}" SelectedItem="{Binding ChatModel}" HorizontalAlignment="Stretch" />
-                </StackPanel>
-                <StackPanel Spacing="6">
-                  <TextBlock Classes="label" Text="EMBEDDING MODEL" />
-                  <ComboBox ItemsSource="{Binding EmbeddingModels}" SelectedItem="{Binding EmbeddingModel}" HorizontalAlignment="Stretch" />
-                  <TextBlock Classes="muted small" TextWrapping="Wrap"
-                             Text="After changing the embedding model, documents must be reindexed or search will not see them." />
-                </StackPanel>
-
-                <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Text="{Binding ModelsNote}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Classes="ghost" Content="Refresh" Command="{Binding RefreshModelsCommand}" />
-                </Grid>
-
-                <StackPanel Spacing="6">
-                  <TextBlock Classes="label" Text="OLLAMA ADDRESS" />
-                  <TextBox Text="{Binding OllamaUrl}" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="primary" Content="Save" IsEnabled="{Binding HasChanges}" Command="{Binding SaveCommand}" />
-                  <Button Classes="secondary" Content="Reindex everything" Command="{Binding ReindexAllCommand}" />
-                </StackPanel>
-                <TextBlock Text="{Binding SavedNote}" Classes="muted small" TextWrapping="Wrap" />
-
-                <StackPanel Spacing="6" Margin="0,8,0,0">
-                  <TextBlock Classes="label" Text="DATA FOLDER" />
-                  <TextBlock Text="{Binding DataDirectory}" Classes="muted small" TextWrapping="Wrap" />
-                  <TextBlock Classes="muted small" TextWrapping="Wrap"
-                             Text="The database and originals live here. To back up, copy this folder." />
-                </StackPanel>
+              <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="ANSWER MODEL" />
+                <ComboBox ItemsSource="{Binding ChatModels}" SelectedItem="{Binding ChatModel}" HorizontalAlignment="Stretch" />
               </StackPanel>
-            </ScrollViewer>
-          </DataTemplate>
-        </ContentControl.DataTemplates>
-      </ContentControl>
-    </Border>
-  </Grid>
+              <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="EMBEDDING MODEL" />
+                <ComboBox ItemsSource="{Binding EmbeddingModels}" SelectedItem="{Binding EmbeddingModel}" HorizontalAlignment="Stretch" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="After changing the embedding model, documents must be reindexed or search will not see them." />
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding ModelsNote}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="ghost" Content="Refresh" Command="{Binding RefreshModelsCommand}" />
+              </Grid>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="OLLAMA ADDRESS" />
+                <TextBox Text="{Binding OllamaUrl}" />
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="Save" IsEnabled="{Binding HasChanges}" Command="{Binding SaveCommand}" />
+                <Button Classes="secondary" Content="Reindex everything" Command="{Binding ReindexAllCommand}" />
+              </StackPanel>
+              <TextBlock Text="{Binding SavedNote}" Classes="muted small" TextWrapping="Wrap" />
+
+              <StackPanel Spacing="6" Margin="0,8,0,0">
+                <TextBlock Classes="label" Text="DATA FOLDER" />
+                <TextBlock Text="{Binding DataDirectory}" Classes="muted small" TextWrapping="Wrap" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="The database and originals live here. To back up, copy this folder." />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </DataTemplate>
+      </ContentControl.DataTemplates>
+    </ContentControl>
+  </Border>
 </UserControl>

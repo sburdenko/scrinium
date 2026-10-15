@@ -4,104 +4,87 @@
              x:Class="Scrinium.Desktop.Views.ArchiveView"
              x:DataType="vm:SourcesViewModel"
              x:Name="Root">
-  <Grid RowDefinitions="Auto,Auto,*" Margin="40,32,40,0" RowSpacing="20">
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
-      <StackPanel Spacing="4" VerticalAlignment="Bottom">
-        <TextBlock Classes="heading" Text="Archive" />
-        <TextBlock Classes="muted" Text="{Binding Summary}" />
+  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0">
+    <Grid RowDefinitions="Auto,*,Auto">
+      <StackPanel Grid.Row="0" Spacing="10" Margin="20,16,20,12">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="label" Text="ARCHIVE" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="muted small" Text="{Binding Summary}" VerticalAlignment="Center" />
+        </Grid>
+        <TextBox PlaceholderText="Filter by name" Text="{Binding Filter}" />
       </StackPanel>
-      <TextBox Grid.Column="1" Width="240" Height="36" VerticalAlignment="Bottom"
-               PlaceholderText="Filter by name" Text="{Binding Filter}" />
-      <Button Grid.Column="2" Classes="secondary" Content="Retry failures" VerticalAlignment="Bottom"
-              IsVisible="{Binding HasFailed}" Command="{Binding RetryFailedCommand}" />
-      <Button Grid.Column="3" Classes="primary" VerticalAlignment="Bottom" Command="{Binding AddFilesCommand}">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Path Classes="icon" Width="16" Height="16" Stroke="{DynamicResource OnAccent}"
-                Data="{StaticResource IconPlus}" StrokeThickness="2.5" />
-          <TextBlock Text="Add files" Foreground="{DynamicResource OnAccent}" FontWeight="Bold" />
-        </StackPanel>
-      </Button>
-    </Grid>
 
-    <Border Grid.Row="1" Background="{DynamicResource DangerSoft}" Padding="12,10"
-            IsVisible="{Binding LastError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Text="{Binding LastError}" TextWrapping="Wrap" Foreground="{DynamicResource DangerInk}" />
-        <Button Grid.Column="1" Classes="icon" Command="{Binding DismissErrorCommand}">
-          <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconX}" Stroke="{DynamicResource DangerInk}" />
-        </Button>
-      </Grid>
-    </Border>
+      <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,2,0,0">
+        <Grid>
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsVisible="{Binding !IsEmpty}">
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SourceItemViewModel">
+                  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+                    <Button Classes="row" Classes.open="{Binding IsOpenInOriginal}"
+                            Command="{Binding #Root.((vm:SourcesViewModel)DataContext).OpenCommand}"
+                            CommandParameter="{Binding}">
+                      <Grid ColumnDefinitions="24,*,Auto" ColumnSpacing="8" Margin="20,9">
+                        <TextBlock Text="{Binding NumberText}" FontSize="11" FontWeight="ExtraBold"
+                                   Foreground="{DynamicResource InkFaint}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding DetailText}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                     Classes="muted" Classes.failed="{Binding IsFailed}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
+                          <Button Classes="icon small" ToolTip.Tip="Retry" IsVisible="{Binding CanRetry}"
+                                  Command="{Binding #Root.((vm:SourcesViewModel)DataContext).RetryCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconRotateCcw}"
+                                  Stroke="{DynamicResource Accent}" />
+                          </Button>
+                          <Button Classes="icon small" ToolTip.Tip="Delete"
+                                  IsVisible="{Binding $parent[Button].IsPointerOver}"
+                                  Command="{Binding #Root.((vm:SourcesViewModel)DataContext).DeleteCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconX}"
+                                  Stroke="{DynamicResource InkMuted}" />
+                          </Button>
+                          <TextBlock Text="{Binding CitationMarks}" FontSize="11" FontWeight="ExtraBold"
+                                     Foreground="{DynamicResource Blue}" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
 
-    <Grid Grid.Row="2" RowDefinitions="Auto,*">
-      <Border BorderBrush="{DynamicResource LineStrong}" BorderThickness="0,0,0,1" Padding="0">
-        <Grid ColumnDefinitions="*,70,120,170,220,48">
-          <TextBlock Classes="muted" Text="DOCUMENT" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Margin="12,8" />
-          <TextBlock Grid.Column="1" Classes="muted" Text="TYPE" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Margin="8" />
-          <TextBlock Grid.Column="2" Classes="muted" Text="FILE DATE" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Margin="8" />
-          <TextBlock Grid.Column="3" Classes="muted" Text="STATE" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Margin="8" />
-          <TextBlock Grid.Column="4" Classes="muted" Text="DETAIL" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Margin="8" />
+          <StackPanel IsVisible="{Binding IsEmpty}" Spacing="6" Margin="20,24">
+            <TextBlock Text="Nothing here yet" FontSize="16" FontWeight="ExtraBold" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" FontSize="13"
+                       Text="Add .txt, .md or .pdf files. Everything stays on this computer." />
+          </StackPanel>
         </Grid>
       </Border>
 
-      <ListBox Grid.Row="1" ItemsSource="{Binding Items}" Background="Transparent" Padding="0"
-               SelectionMode="Single" IsVisible="{Binding !IsEmpty}">
-        <ListBox.Styles>
-          <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LineFaint}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-          </Style>
-          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AccentTint8}" />
-          </Style>
-          <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-          </Style>
-        </ListBox.Styles>
-        <ListBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:SourceItemViewModel">
-            <Grid ColumnDefinitions="*,70,120,170,220,48" Background="Transparent">
-              <StackPanel Orientation="Horizontal" Spacing="12" Margin="12,8" VerticalAlignment="Center">
-                <Rectangle Classes="dot" Classes.ready="{Binding IsReady}" Classes.busy="{Binding IsBusy}"
-                           Classes.stale="{Binding IsStale}" Classes.failed="{Binding IsFailed}" />
-                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-              </StackPanel>
-              <TextBlock Grid.Column="1" Text="{Binding KindLabel}" FontSize="12" FontWeight="Bold"
-                         VerticalAlignment="Center" Margin="8" />
-              <TextBlock Grid.Column="2" Text="{Binding DateText}" Classes="muted" VerticalAlignment="Center" Margin="8" />
-              <Border Grid.Column="3" Classes="tag" Margin="8"
-                      Classes.ready="{Binding IsReady}" Classes.busy="{Binding IsBusy}"
-                      Classes.stale="{Binding IsStale}" Classes.failed="{Binding IsFailed}">
-                <TextBlock Text="{Binding StateLabel}" FontSize="11" FontWeight="SemiBold" />
-              </Border>
-              <TextBlock Grid.Column="4" Text="{Binding StatusText}" FontSize="13" Margin="8"
-                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                         Classes="muted" Classes.failedText="{Binding IsFailed}" />
-              <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Classes="icon" ToolTip.Tip="Retry" IsVisible="{Binding CanRetry}"
-                        Command="{Binding #Root.((vm:SourcesViewModel)DataContext).RetryCommand}"
-                        CommandParameter="{Binding}">
-                  <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconRotateCcw}" Stroke="{DynamicResource Accent}" />
-                </Button>
-                <Button Classes="icon" ToolTip.Tip="Delete"
-                        IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}"
-                        Command="{Binding #Root.((vm:SourcesViewModel)DataContext).DeleteCommand}"
-                        CommandParameter="{Binding}">
-                  <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconX}" Stroke="{DynamicResource InkMuted}" />
-                </Button>
-              </StackPanel>
-            </Grid>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-
-      <StackPanel Grid.Row="1" IsVisible="{Binding IsEmpty}" Spacing="6" Margin="12,28" HorizontalAlignment="Left">
-        <TextBlock Text="Nothing here yet" FontSize="17" FontWeight="ExtraBold" />
-        <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="460"
-                   Text="Add .txt, .md or .pdf files. Everything stays on this computer." />
+      <StackPanel Grid.Row="2" Spacing="8" Margin="20,16">
+        <Border BorderBrush="{DynamicResource Danger}" BorderThickness="2,0,0,0" Padding="12,8"
+                IsVisible="{Binding LastError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding LastError}" TextWrapping="Wrap" FontSize="13" />
+            <Button Grid.Column="1" Classes="icon small" Command="{Binding DismissErrorCommand}" VerticalAlignment="Top">
+              <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconX}" />
+            </Button>
+          </Grid>
+        </Border>
+        <Button Classes="primary" Command="{Binding AddFilesCommand}" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="icon" Width="16" Height="16" Stroke="{DynamicResource OnAccent}"
+                  Data="{StaticResource IconPlus}" />
+            <TextBlock Text="Add files" Foreground="{DynamicResource OnAccent}" />
+          </StackPanel>
+        </Button>
+        <TextBlock Classes="muted small" Text="or drop .txt, .md, .pdf anywhere" />
       </StackPanel>
     </Grid>
-  </Grid>
+  </Border>
 </UserControl>

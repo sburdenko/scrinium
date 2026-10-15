@@ -56,6 +56,8 @@ public sealed class AnswerTextBlock : SelectableTextBlock
 
     protected override Type StyleKeyOverride => typeof(SelectableTextBlock);
 
+    private const double MarkerFontSize = 11;
+
     private readonly List<MarkerSpan> _markers = [];
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -96,7 +98,7 @@ public sealed class AnswerTextBlock : SelectableTextBlock
 
         var byNumber = (Citations ?? []).ToDictionary(c => c.Number);
         var parts = CitationMarkers.Split(Answer ?? "");
-        var highlight = this.TryFindResource("AccentSoft", ActualThemeVariant, out var soft) ? soft as IBrush : null;
+        var highlight = this.TryFindResource("Highlight", ActualThemeVariant, out var soft) ? soft as IBrush : null;
         var position = 0;
 
         for (var i = 0; i < parts.Count; i++)
@@ -130,7 +132,8 @@ public sealed class AnswerTextBlock : SelectableTextBlock
         if (cut > 0)
             Inlines!.Add(new Run(text[..cut]));
 
-        Inlines!.Add(new Run(text[cut..]) { Background = sentenceBackground });
+        var ink = this.TryFindResource("HighlightInk", ActualThemeVariant, out var onHighlight) ? onHighlight as IBrush : null;
+        Inlines!.Add(new Run(text[cut..]) { Background = sentenceBackground, Foreground = ink });
         return position + text.Length;
     }
 
@@ -142,16 +145,17 @@ public sealed class AnswerTextBlock : SelectableTextBlock
             return position + marker.Raw.Length;
         }
 
-        var accent = this.TryFindResource("Accent", ActualThemeVariant, out var a) ? a as IBrush : null;
+        var blue = this.TryFindResource("Blue", ActualThemeVariant, out var b) ? b as IBrush : null;
+        var ink = this.TryFindResource("Ink", ActualThemeVariant, out var i) ? i as IBrush : null;
         for (var index = 0; index < marker.Numbers.Count; index++)
         {
             var number = marker.Numbers[index];
-            var label = index < marker.Numbers.Count - 1 ? $"{number}," : number.ToString();
+            var label = $"\u2009{number}{(index < marker.Numbers.Count - 1 ? "," : "")}\u2009";
             Inlines!.Add(new Run(label)
             {
-                FontSize = FontSize * 0.7,
-                FontWeight = FontWeight.Bold,
-                Foreground = accent,
+                FontSize = MarkerFontSize,
+                FontWeight = FontWeight.ExtraBold,
+                Foreground = ActiveNumber == number ? ink : blue,
                 BaselineAlignment = BaselineAlignment.Superscript
             });
             _markers.Add(new MarkerSpan(position, position + label.Length, byNumber[number]));

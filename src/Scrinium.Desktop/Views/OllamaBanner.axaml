@@ -5,8 +5,7 @@
              x:DataType="vm:OllamaBannerViewModel">
   <Border Background="{DynamicResource AccentSoft}" Padding="16,12">
     <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
-      <TextBlock Text="{Binding Message}" Foreground="{DynamicResource HighlightInk}"
-                 VerticalAlignment="Center" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Message}" FontSize="14" VerticalAlignment="Center" TextWrapping="Wrap" />
       <Button Grid.Column="1" Classes="primary" Content="Start Ollama"
               IsVisible="{Binding CanStart}" Command="{Binding StartOllamaCommand}" />
       <Button Grid.Column="2" Classes="primary" Content="Download models"

@@ -7,85 +7,125 @@
              x:Name="Root">
   <Grid RowDefinitions="*,Auto">
     <ScrollViewer x:Name="Scroller" Grid.Row="0" HorizontalScrollBarVisibility="Disabled">
-      <Grid Margin="48,40,48,24">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="620" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-        <StackPanel IsVisible="{Binding IsEmpty}" Spacing="14">
-          <TextBlock Classes="hero" Text="Ask your archive" />
-          <TextBlock Classes="muted" FontSize="16" TextWrapping="Wrap"
-                     Text="Every answer links to the sentence it came from. If your documents don't say, Scrinium tells you so." />
-          <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,12,0,0">
+      <Grid Margin="40,28,40,20">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MaxWidth="660" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="18">
+          <StackPanel IsVisible="{Binding IsEmpty}" Spacing="12">
+            <TextBlock Classes="question" Text="Ask your archive" />
+            <TextBlock Classes="muted" FontSize="16" TextWrapping="Wrap"
+                       Text="Every answer links to the sentence it came from. If your documents don't say, Scrinium tells you so." />
+            <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,12,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Button Classes="row" Command="{Binding #Root.((vm:ChatViewModel)DataContext).UseSuggestionCommand}"
+                          CommandParameter="{Binding}">
+                    <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding}" FontSize="15" TextWrapping="Wrap" />
+                        <Path Grid.Column="1" Classes="icon" Data="{StaticResource IconArrowRight}"
+                              Stroke="{DynamicResource Accent}" />
+                      </Grid>
+                    </Border>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <ItemsControl ItemsSource="{Binding Exchanges}">
             <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="x:String">
-                <Button Classes="row" Command="{Binding #Root.((vm:ChatViewModel)DataContext).UseSuggestionCommand}"
-                        CommandParameter="{Binding}">
-                  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="{Binding}" FontSize="15" TextWrapping="Wrap" />
-                      <Path Grid.Column="1" Classes="icon" Width="16" Height="16"
-                            Data="{StaticResource IconArrowRight}" Stroke="{DynamicResource Accent}" />
-                    </Grid>
-                  </Border>
-                </Button>
+              <DataTemplate x:DataType="vm:ExchangeViewModel">
+                <Grid>
+                  <Button Classes="row" IsVisible="{Binding IsCompressed}"
+                          Command="{Binding #Root.((vm:ChatViewModel)DataContext).FocusExchangeCommand}"
+                          CommandParameter="{Binding}">
+                    <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,18">
+                      <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="{Binding TimeText}" Classes="muted small" VerticalAlignment="Top" Margin="0,2,0,0" />
+                        <TextBlock Grid.Column="1" Text="{Binding Question}" FontSize="14" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{Binding ShortAnswer}" Classes="muted" FontSize="13"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis" VerticalAlignment="Top" Margin="0,1,0,0" />
+                      </Grid>
+                    </Border>
+                  </Button>
+
+                  <StackPanel IsVisible="{Binding IsFocused}" Spacing="18" Margin="0,0,0,18">
+                    <StackPanel Spacing="8" Margin="0,8,0,0">
+                      <TextBlock Classes="muted small" Text="{Binding MetaLine}" />
+                      <TextBlock Classes="question" Text="{Binding Question}" />
+                    </StackPanel>
+
+                    <TextBlock IsVisible="{Binding Answer.IsPending}" Text="{Binding Answer.StatusLine}"
+                               Classes="muted" FontStyle="Italic" FontSize="14" />
+
+                    <ctl:AnswerTextBlock IsVisible="{Binding Answer.IsTextVisible}" Answer="{Binding Answer.Text}"
+                                         Citations="{Binding Answer.Citations}"
+                                         ActiveNumber="{Binding Answer.ActiveCitationNumber}"
+                                         TextWrapping="Wrap" FontSize="18" LineHeight="31"
+                                         MarkerCommand="{Binding #Root.((vm:ChatViewModel)DataContext).OpenCitationCommand}" />
+
+                    <TextBlock IsVisible="{Binding Answer.IsStopped}" Text="Stopped" Classes="muted small" />
+
+                    <Border IsVisible="{Binding Answer.IsFailed}" BorderBrush="{DynamicResource Danger}"
+                            BorderThickness="2,0,0,0" Padding="12">
+                      <TextBlock Text="{Binding Answer.Error}" TextWrapping="Wrap" />
+                    </Border>
+
+                    <Border IsVisible="{Binding Answer.HasCited}" Margin="0,8,0,0"
+                            BorderBrush="{DynamicResource Ink}" BorderThickness="0,2,0,0">
+                      <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" ClipToBounds="True">
+                        <ItemsControl ItemsSource="{Binding Answer.CitedCitations}" Margin="-1,0,0,0">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CitationViewModel">
+                              <Border BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+                                <Button Classes="cell" Classes.active="{Binding IsActive}"
+                                        Command="{Binding #Root.((vm:ChatViewModel)DataContext).OpenCitationCommand}"
+                                        CommandParameter="{Binding}">
+                                  <StackPanel Spacing="4">
+                                    <TextBlock Classes="number" Text="{Binding Number}" FontSize="28"
+                                               FontWeight="ExtraBold" LineHeight="28" />
+                                    <TextBlock Text="{Binding DocumentTitle}" FontSize="12" FontWeight="ExtraBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Subtitle}" Classes="muted" FontSize="11"
+                                               TextTrimming="CharacterEllipsis" />
+                                  </StackPanel>
+                                </Button>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </Border>
+                    </Border>
+
+                    <TextBlock IsVisible="{Binding Answer.HasStats}" Classes="muted small" Text="{Binding Answer.StatsLine}" />
+                  </StackPanel>
+                </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
-
-        <ItemsControl x:Name="Messages" ItemsSource="{Binding Messages}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:ChatMessageViewModel">
-              <Grid>
-                <Border IsVisible="{Binding IsUser}" BorderBrush="{DynamicResource Line}"
-                        Classes.ruled="{Binding ShowRuleAbove}" Margin="0,0,0,12">
-                  <StackPanel Spacing="8" Margin="0,0,0,0">
-                    <Border IsVisible="{Binding ShowRuleAbove}" Height="2" Background="{DynamicResource Line}" Margin="0,16,0,16" />
-                    <TextBlock Classes="muted small" Text="{Binding MetaLine}" />
-                    <TextBlock Classes="heading" Text="{Binding Text}" TextWrapping="Wrap" />
-                  </StackPanel>
-                </Border>
-
-                <StackPanel IsVisible="{Binding IsAssistant}" Spacing="14" Margin="0,0,0,24">
-                  <TextBlock IsVisible="{Binding IsPending}" Text="{Binding StatusLine}" Classes="muted"
-                             FontStyle="Italic" FontSize="14" />
-
-                  <ctl:AnswerTextBlock IsVisible="{Binding IsTextVisible}" Answer="{Binding Text}"
-                                       Citations="{Binding Citations}" ActiveNumber="{Binding ActiveCitationNumber}"
-                                       TextWrapping="Wrap" FontSize="17" LineHeight="30"
-                                       MarkerCommand="{Binding #Root.((vm:ChatViewModel)DataContext).OpenCitationCommand}" />
-
-                  <TextBlock IsVisible="{Binding IsStopped}" Text="Stopped" Classes="muted small" />
-
-                  <Border IsVisible="{Binding IsFailed}" Background="{DynamicResource DangerSoft}" Padding="10,12">
-                    <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource DangerInk}" />
-                  </Border>
-
-                  <Border IsVisible="{Binding HasStats}" BorderBrush="{DynamicResource Line}"
-                          BorderThickness="0,2,0,0" Padding="0,10,0,0">
-                    <TextBlock Classes="muted small" Text="{Binding StatsLine}" />
-                  </Border>
-                </StackPanel>
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
       </Grid>
     </ScrollViewer>
 
-    <Grid Grid.Row="1" Margin="48,12,48,24">
+    <Grid Grid.Row="1" Margin="40,12,40,24">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="620" />
+        <ColumnDefinition Width="*" MaxWidth="660" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <Border BorderBrush="{DynamicResource Ink}" BorderThickness="0,0,0,2" Padding="0,8">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBox x:Name="Prompt" Background="Transparent" BorderThickness="0" AcceptsReturn="True"
-                   TextWrapping="Wrap" MaxHeight="150" FontSize="16" Padding="0,8"
-                   PlaceholderText="Ask about your documents…" Text="{Binding Input}" />
-          <Button Grid.Column="1" Classes="primary" Width="36" Height="36" Padding="0"
-                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Bottom"
+      <Border BorderBrush="{DynamicResource Ink}" BorderThickness="0,0,0,2" Padding="0,6">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <TextBox x:Name="Prompt" Classes="composer" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="150"
+                   PlaceholderText="{Binding ComposerPlaceholder}" Text="{Binding Input}" />
+          <Button Grid.Column="1" Classes="primary icon" VerticalAlignment="Bottom"
                   IsVisible="{Binding !IsBusy}" Command="{Binding SendCommand}" ToolTip.Tip="Send">
             <Path Classes="icon" Width="18" Height="18" Data="{StaticResource IconArrowUp}"
                   Stroke="{DynamicResource OnAccent}" StrokeThickness="2.5" />

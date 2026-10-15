@@ -10,6 +10,7 @@ public sealed partial class ChatViewModel : ObservableObject
     private readonly AnswerService _answers;
     private readonly PanelHost _panel;
     private CancellationTokenSource? _cts;
+    private int _historyStart;
 
     public ChatViewModel(AnswerService answers, PanelHost panel)
     {
@@ -22,10 +23,21 @@ public sealed partial class ChatViewModel : ObservableObject
         };
     }
 
-    [ObservableProperty]
-    private ChatMessageViewModel? _focusedMessage;
+    public ObservableCollection<ExchangeViewModel> Exchanges { get; } = [];
 
-    public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
+    [ObservableProperty]
+    private ExchangeViewModel? _focusedExchange;
+
+    partial void OnFocusedExchangeChanged(ExchangeViewModel? oldValue, ExchangeViewModel? newValue)
+    {
+        if (oldValue is not null)
+            oldValue.IsFocused = false;
+
+        if (newValue is not null)
+            newValue.IsFocused = true;
+
+        CitationStateChanged?.Invoke();
+    }
 
     public IReadOnlyList<string> Suggestions { get; } =
     [
@@ -34,9 +46,18 @@ public sealed partial class ChatViewModel : ObservableObject
         "What does the contract say about the cancellation period?"
     ];
 
-    public bool IsEmpty => Messages.Count == 0;
+    public bool IsEmpty => Exchanges.Count == 0;
+
+    public string SessionLine =>
+        $"Session · {Exchanges.Count} {(Exchanges.Count == 1 ? "question" : "questions")}";
+
+    public string ComposerPlaceholder => IsEmpty ? "Ask about your documents…" : "Ask a follow-up…";
 
     public event Action? ScrollRequested;
+
+    public event Action? FocusComposerRequested;
+
+    public event Action? CitationStateChanged;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
@@ -57,18 +78,26 @@ public sealed partial class ChatViewModel : ObservableObject
         var question = Input.Trim();
         Input = "";
 
-        var history = Messages
-            .Where(m => m.IsFinished && !string.IsNullOrWhiteSpace(m.Text))
-            .Select(m => m.IsUser ? ChatTurn.User(m.Text) : ChatTurn.Assistant(m.Text))
+        var history = Exchanges
+            .Skip(_historyStart)
+            .Where(e => e.Answer.IsFinished && !string.IsNullOrWhiteSpace(e.Answer.Text))
+            .SelectMany(e => new[] { ChatTurn.User(e.Question), ChatTurn.Assistant(e.Answer.Text) })
             .ToList();
 
-        Messages.Add(ChatMessageViewModel.FromUser(question, ruleAbove: Messages.Count > 0));
-        var reply = ChatMessageViewModel.NewAssistant();
-        Messages.Add(reply);
-        FocusedMessage = reply;
-        OnPropertyChanged(nameof(IsEmpty));
+        var exchange = new ExchangeViewModel(question, DateTimeOffset.Now);
+        exchange.Answer.CitationsChanged += () =>
+        {
+            if (ReferenceEquals(FocusedExchange, exchange))
+                CitationStateChanged?.Invoke();
+        };
+
+        Exchanges.Add(exchange);
+        FocusedExchange = exchange;
+        _panel.ResetOriginal();
+        NotifySessionChanged();
         ScrollRequested?.Invoke();
 
+        var reply = exchange.Answer;
         _cts = new CancellationTokenSource();
         IsBusy = true;
         try
@@ -108,28 +137,34 @@ public sealed partial class ChatViewModel : ObservableObject
             _cts = null;
             ScrollRequested?.Invoke();
         }
+
+        if (ReferenceEquals(FocusedExchange, exchange))
+            await ShowFirstSourceAsync(exchange);
     }
 
     [RelayCommand]
     private void Stop() => _cts?.Cancel();
 
     [RelayCommand]
-    private void NewChat()
+    private void NewQuestion()
     {
-        _cts?.Cancel();
-        Messages.Clear();
-        FocusedMessage = null;
-        OnPropertyChanged(nameof(IsEmpty));
+        _historyStart = Exchanges.Count;
+        FocusedExchange = null;
+        _panel.ResetOriginal();
+        FocusComposerRequested?.Invoke();
     }
 
     [RelayCommand]
     private void UseSuggestion(string suggestion) => Input = suggestion;
 
     [RelayCommand]
-    private void FocusMessage(ChatMessageViewModel? message)
+    private async Task FocusExchangeAsync(ExchangeViewModel? exchange)
     {
-        if (message is { IsAssistant: true })
-            FocusedMessage = message;
+        if (exchange is null)
+            return;
+
+        FocusedExchange = exchange;
+        await ShowFirstSourceAsync(exchange);
     }
 
     [RelayCommand]
@@ -138,32 +173,41 @@ public sealed partial class ChatViewModel : ObservableObject
         if (citation is null)
             return;
 
-        var owner = OwnerOf(citation) ?? FocusedMessage;
-        var siblings = owner?.Citations.ToList() ?? [citation];
+        var owner = OwnerOf(citation) ?? FocusedExchange;
+        var cited = owner?.Answer.CitedCitations ?? [];
+        IReadOnlyList<CitationViewModel> siblings = cited.Contains(citation)
+            ? cited
+            : owner?.Answer.Citations.ToList() ?? [citation];
+
         await _panel.ShowPreviewAsync(PreviewRequest.For(citation, siblings));
     }
 
-    [RelayCommand]
-    private async Task ExpandOriginalAsync()
+    private async Task ShowFirstSourceAsync(ExchangeViewModel exchange)
     {
-        if (_panel.CanReopen)
+        var first = exchange.Answer.CitedCitations.FirstOrDefault();
+        if (first is null)
         {
-            _panel.Expand();
+            _panel.ResetOriginal();
             return;
         }
 
-        var first = FocusedMessage?.Citations.FirstOrDefault();
-        if (first is not null)
-            await OpenCitationAsync(first);
+        await OpenCitationAsync(first);
     }
 
-    private ChatMessageViewModel? OwnerOf(CitationViewModel citation) =>
-        Messages.FirstOrDefault(m => m.Citations.Contains(citation));
+    private void NotifySessionChanged()
+    {
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(SessionLine));
+        OnPropertyChanged(nameof(ComposerPlaceholder));
+    }
+
+    private ExchangeViewModel? OwnerOf(CitationViewModel citation) =>
+        Exchanges.FirstOrDefault(e => e.Answer.Citations.Contains(citation));
 
     private void SyncActiveCitation()
     {
-        foreach (var message in Messages)
-            message.ActiveCitationNumber = null;
+        foreach (var exchange in Exchanges)
+            exchange.Answer.ActiveCitationNumber = null;
 
         if (_panel.Current is not PreviewPanelViewModel { Number: { } number } preview)
             return;
@@ -172,8 +216,8 @@ public sealed partial class ChatViewModel : ObservableObject
         if (owner is null)
             return;
 
-        owner.ActiveCitationNumber = number;
-        FocusedMessage = owner;
+        owner.Answer.ActiveCitationNumber = number;
+        FocusedExchange = owner;
     }
 
     private static string Humanize(Exception ex) => ex switch

@@ -7,48 +7,51 @@ using Scrinium.Ollama;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public sealed partial class PanelHost(
-    DocumentPreviewService previews,
-    SettingsService settings,
-    DocumentLibrary library,
-    OllamaMonitor monitor,
-    DataPaths paths) : ObservableObject
+public sealed partial class PanelHost : ObservableObject
 {
-    private PreviewPanelViewModel? _lastPreview;
-    private RightPanelViewModel? _underSettings;
+    private readonly DocumentPreviewService _previews;
+    private readonly SettingsService _settings;
+    private readonly DocumentLibrary _library;
+    private readonly OllamaMonitor _monitor;
+    private readonly DataPaths _paths;
+    private PreviewPanelViewModel _original;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOpen), nameof(IsCollapsed))]
-    private RightPanelViewModel? _current;
+    private RightPanelViewModel _current;
 
-    public bool IsOpen => Current is not null;
-
-    public bool IsCollapsed => Current is null;
-
-    public bool CanReopen => _lastPreview is not null;
+    public PanelHost(
+        DocumentPreviewService previews,
+        SettingsService settings,
+        DocumentLibrary library,
+        OllamaMonitor monitor,
+        DataPaths paths)
+    {
+        _previews = previews;
+        _settings = settings;
+        _library = library;
+        _monitor = monitor;
+        _paths = paths;
+        _original = PreviewPanelViewModel.Empty();
+        _current = _original;
+    }
 
     public async Task ShowPreviewAsync(PreviewRequest request)
     {
         DocumentPreview? preview = null;
         try
         {
-            preview = await previews.LoadAsync(request.Location);
+            preview = await _previews.LoadAsync(request.Location);
         }
         catch (Exception ex) when (ex is IOException or Core.Extraction.TextExtractionException)
         {
             preview = null;
         }
 
-        var panel = new PreviewPanelViewModel(
+        _original = new PreviewPanelViewModel(
             preview,
             request,
             citation => ShowPreviewAsync(PreviewRequest.For(citation, request.Citations)));
-
-        panel.CloseRequested += Close;
-        _underSettings = null;
-        _lastPreview = panel;
-        OnPropertyChanged(nameof(CanReopen));
-        Current = panel;
+        Current = _original;
     }
 
     public void ShowSettings()
@@ -59,9 +62,8 @@ public sealed partial class PanelHost(
             return;
         }
 
-        var panel = new SettingsPanelViewModel(settings, library, monitor, paths.Root);
+        var panel = new SettingsPanelViewModel(_settings, _library, _monitor, _paths.Root);
         panel.CloseRequested += Close;
-        _underSettings = Current;
         Current = panel;
         _ = panel.RefreshModelsAsync();
     }
@@ -69,18 +71,19 @@ public sealed partial class PanelHost(
     public void Close()
     {
         if (Current is SettingsPanelViewModel)
-        {
-            Current = _underSettings;
-            _underSettings = null;
-            return;
-        }
-
-        Current = null;
+            Current = _original;
     }
 
-    public void Expand()
+    public void ResetOriginal()
     {
-        if (_lastPreview is not null)
-            Current = _lastPreview;
+        _original = PreviewPanelViewModel.Empty();
+        if (Current is not SettingsPanelViewModel)
+            Current = _original;
+    }
+
+    public void ResetOriginalIfShowing(Guid documentId)
+    {
+        if (_original.DocumentId == documentId)
+            ResetOriginal();
     }
 }

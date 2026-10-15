@@ -16,7 +16,7 @@ public sealed class DesktopHarness : IDisposable
         Panel = new PanelHost(_app.Preview, _app.Settings, _app.Library, monitor, _app.Paths);
         Sources = new SourcesViewModel(_app.Library, _app.Settings, new NoPicker(), Panel);
         Chat = new ChatViewModel(_app.Answers, Panel);
-        Main = new MainViewModel(Sources, Chat, null!, Panel);
+        Main = new MainViewModel(Sources, Chat, null!, Panel, _app.Settings);
     }
 
     public TestApp App => _app;

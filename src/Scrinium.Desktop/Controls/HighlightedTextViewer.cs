@@ -18,7 +18,7 @@ public sealed class HighlightedTextViewer : ScrollViewer
     public static readonly StyledProperty<string?> AfterProperty =
         AvaloniaProperty.Register<HighlightedTextViewer, string?>(nameof(After));
 
-    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, LineHeight = 24, FontSize = 14 };
+    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, LineHeight = 26, FontSize = 15, Margin = new Thickness(24) };
 
     static HighlightedTextViewer()
     {
@@ -71,8 +71,7 @@ public sealed class HighlightedTextViewer : ScrollViewer
         _text.Inlines.Add(new Run(highlight)
         {
             Background = FindBrush("Highlight"),
-            Foreground = FindBrush("HighlightInk"),
-            FontWeight = FontWeight.SemiBold
+            Foreground = FindBrush("HighlightInk")
         });
         _text.Inlines.Add(new Run(After ?? "") { Foreground = muted });
 

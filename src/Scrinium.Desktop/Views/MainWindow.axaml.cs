@@ -32,7 +32,5 @@ public partial class MainWindow : Window
             return;
 
         await main.Sources.ImportPathsAsync(paths);
-        if (main.IsAsk)
-            main.ShowArchiveCommand.Execute(null);
     }
 }
