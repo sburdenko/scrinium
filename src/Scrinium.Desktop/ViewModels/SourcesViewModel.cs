@@ -16,6 +16,8 @@ public sealed partial class SourcesViewModel : ObservableObject
     private readonly IFilePicker _picker;
     private readonly PanelHost _panel;
     private IReadOnlyList<Document> _documents = [];
+    private IReadOnlyList<CitationViewModel> _markedCitations = [];
+    private Guid? _openDocumentId;
     private int _reloadScheduled;
 
     public SourcesViewModel(DocumentLibrary library, ISettingsProvider settings, IFilePicker picker, PanelHost panel)
@@ -37,12 +39,6 @@ public sealed partial class SourcesViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isEmpty = true;
-
-    [ObservableProperty]
-    private bool _hasFailed;
-
-    [ObservableProperty]
-    private int _failedCount;
 
     [ObservableProperty]
     private string _lastError = "";
@@ -82,19 +78,11 @@ public sealed partial class SourcesViewModel : ObservableObject
     private async Task DeleteAsync(SourceItemViewModel item)
     {
         await _library.DeleteAsync(item.Id);
-        if (_panel.Current is PreviewPanelViewModel)
-            _panel.Close();
+        _panel.ResetOriginalIfShowing(item.Id);
     }
 
     [RelayCommand]
     private Task RetryAsync(SourceItemViewModel item) => _library.RetryAsync(item.Id);
-
-    [RelayCommand]
-    private async Task RetryFailedAsync()
-    {
-        foreach (var item in Items.Where(i => i.IsFailed).ToList())
-            await _library.RetryAsync(item.Id);
-    }
 
     [RelayCommand]
     private Task OpenAsync(SourceItemViewModel item) =>
@@ -102,6 +90,24 @@ public sealed partial class SourcesViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissError() => LastError = "";
+
+    public void Mark(IReadOnlyList<CitationViewModel> cited, Guid? openDocumentId)
+    {
+        _markedCitations = cited;
+        _openDocumentId = openDocumentId;
+        foreach (var item in Items)
+            ApplyMarks(item);
+    }
+
+    private void ApplyMarks(SourceItemViewModel item)
+    {
+        item.CitationMarks = string.Join(" · ", _markedCitations
+            .Where(c => c.Location.DocumentId == item.Id)
+            .Select(c => c.Number)
+            .Distinct()
+            .Order());
+        item.IsOpenInOriginal = _openDocumentId == item.Id;
+    }
 
     private void ScheduleReload()
     {
@@ -125,19 +131,18 @@ public sealed partial class SourcesViewModel : ObservableObject
     {
         var model = _settings.Current.EmbeddingModel;
         var visible = _documents
-            .Where(d => string.IsNullOrWhiteSpace(Filter) || d.Title.Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(d => new SourceItemViewModel(d, model))
+            .Select((d, index) => new SourceItemViewModel(d, model, index))
+            .Where(i => string.IsNullOrWhiteSpace(Filter) || i.Title.Contains(Filter.Trim(), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         Items.Clear();
         foreach (var item in visible)
+        {
+            ApplyMarks(item);
             Items.Add(item);
+        }
 
         IsEmpty = _documents.Count == 0;
-        FailedCount = _documents.Count(d => d.State is IndexState.Failed);
-        HasFailed = FailedCount > 0;
-
-        var noun = _documents.Count == 1 ? "document" : "documents";
-        Summary = $"{_documents.Count} {noun} · stays on this computer · {model}";
+        Summary = $"{_documents.Count} · {model}";
     }
 }

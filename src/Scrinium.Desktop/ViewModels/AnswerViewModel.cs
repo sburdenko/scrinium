@@ -5,29 +5,17 @@ using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public sealed partial class ChatMessageViewModel : ObservableObject
+public sealed partial class AnswerViewModel : ObservableObject
 {
-    private ChatMessageViewModel(bool isUser, string text, MessagePhase phase, bool ruleAbove = false)
-    {
-        IsUser = isUser;
-        _text = text;
-        _phase = phase;
-        ShowRuleAbove = ruleAbove;
-        Asked = DateTimeOffset.Now;
-    }
+    public event Action? CitationsChanged;
 
-    public static ChatMessageViewModel FromUser(string text, bool ruleAbove = false) =>
-        new(true, text, MessagePhase.Done, ruleAbove);
+    public ObservableCollection<CitationViewModel> Citations { get; } = [];
 
-    public bool ShowRuleAbove { get; }
+    public IReadOnlyList<CitationViewModel> CitedCitations => Citations.Where(c => c.IsCited).ToList();
 
-    public static ChatMessageViewModel NewAssistant() => new(false, "", MessagePhase.Searching);
+    public bool HasCitations => Citations.Count > 0;
 
-    public bool IsUser { get; }
-
-    public DateTimeOffset Asked { get; }
-
-    public string MetaLine => $"You asked · {Asked:HH:mm}";
+    public bool HasCited => Citations.Any(c => c.IsCited);
 
     public string StatsLine
     {
@@ -35,7 +23,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
         {
             var cited = Citations.Count(c => c.IsCited);
             var fragments = Citations.Count == 1 ? "1 fragment retrieved" : $"{Citations.Count} fragments retrieved";
-            return $"{fragments} · {cited} cited · Answered from your documents only";
+            return $"{fragments} · {cited} cited · answered from your documents only";
         }
     }
 
@@ -50,12 +38,6 @@ public sealed partial class ChatMessageViewModel : ObservableObject
             citation.IsActive = citation.Number == value;
     }
 
-    public bool IsAssistant => !IsUser;
-
-    public ObservableCollection<CitationViewModel> Citations { get; } = [];
-
-    public bool HasCitations => Citations.Count > 0;
-
     public bool IsPending => Phase is MessagePhase.Searching or MessagePhase.Composing;
 
     public string StatusLine => Phase switch
@@ -66,39 +48,20 @@ public sealed partial class ChatMessageViewModel : ObservableObject
         _ => ""
     };
 
-    public bool IsWriting => Phase == MessagePhase.Writing;
-
     public bool IsFailed => Phase == MessagePhase.Failed;
 
     public bool IsStopped => Phase == MessagePhase.Stopped;
 
-    public bool IsTextVisible => IsUser || Phase is MessagePhase.Writing or MessagePhase.Done or MessagePhase.Stopped;
+    public bool IsTextVisible => Phase is MessagePhase.Writing or MessagePhase.Done or MessagePhase.Stopped;
 
     public bool IsFinished => Phase is MessagePhase.Done or MessagePhase.Stopped;
 
-    public string SourcesHeader
-    {
-        get
-        {
-            if (!IsFinished)
-                return $"Retrieved fragments ({Citations.Count})";
-
-            var cited = Citations.Count(c => c.IsCited);
-            return cited switch
-            {
-                0 => $"Retrieved fragments, none cited ({Citations.Count})",
-                _ when cited == Citations.Count => $"Sources ({cited})",
-                _ => $"Sources ({cited} cited, {Citations.Count - cited} more retrieved)"
-            };
-        }
-    }
+    [ObservableProperty]
+    private string _text = "";
 
     [ObservableProperty]
-    private string _text;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusLine), nameof(SourcesHeader), nameof(IsWriting), nameof(IsFailed), nameof(IsStopped), nameof(IsTextVisible), nameof(IsFinished))]
-    private MessagePhase _phase;
+    [NotifyPropertyChangedFor(nameof(IsPending), nameof(StatusLine), nameof(IsFailed), nameof(IsStopped), nameof(IsTextVisible), nameof(IsFinished))]
+    private MessagePhase _phase = MessagePhase.Searching;
 
     [ObservableProperty]
     private string _error = "";
@@ -109,11 +72,10 @@ public sealed partial class ChatMessageViewModel : ObservableObject
         foreach (var citation in citations)
             Citations.Add(new CitationViewModel(citation));
 
-        OnPropertyChanged(nameof(HasCitations));
-        OnPropertyChanged(nameof(SourcesHeader));
         OnActiveCitationNumberChanged(ActiveCitationNumber);
         Phase = MessagePhase.Composing;
         OnPropertyChanged(nameof(StatusLine));
+        NotifyCitationsChanged();
     }
 
     public void RefineSources(IReadOnlyList<Citation> citations)
@@ -124,7 +86,7 @@ public sealed partial class ChatMessageViewModel : ObservableObject
             Citations.Add(new CitationViewModel(citation) { IsCited = cited.Contains(citation.Number) });
 
         OnActiveCitationNumberChanged(ActiveCitationNumber);
-        OnPropertyChanged(nameof(SourcesHeader));
+        NotifyCitationsChanged();
     }
 
     public void Append(string delta)
@@ -150,8 +112,17 @@ public sealed partial class ChatMessageViewModel : ObservableObject
             citation.IsCited = cited.Contains(citation.Number);
 
         Phase = phase;
-        OnPropertyChanged(nameof(SourcesHeader));
+        OnPropertyChanged(nameof(HasStats));
+        NotifyCitationsChanged();
+    }
+
+    private void NotifyCitationsChanged()
+    {
+        OnPropertyChanged(nameof(HasCitations));
+        OnPropertyChanged(nameof(HasCited));
+        OnPropertyChanged(nameof(CitedCitations));
         OnPropertyChanged(nameof(StatsLine));
         OnPropertyChanged(nameof(HasStats));
+        CitationsChanged?.Invoke();
     }
 }

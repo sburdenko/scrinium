@@ -7,131 +7,149 @@ namespace Scrinium.Tests;
 public sealed class MainViewModelTests
 {
     [Fact]
-    public void The_window_starts_on_the_ask_screen()
+    public void The_model_line_names_the_local_chat_model()
     {
         using var harness = new DesktopHarness();
 
-        Assert.Equal(AppSection.Ask, harness.Main.Section);
-        Assert.True(harness.Main.IsAsk);
-        Assert.False(harness.Main.IsArchive);
+        Assert.Equal("Local · qwen3-coder:30b", harness.Main.ModelLine);
     }
 
     [Fact]
-    public void The_archive_and_ask_screens_switch_with_their_commands()
+    public void The_model_line_follows_a_settings_change()
     {
         using var harness = new DesktopHarness();
 
-        harness.Main.ShowArchiveCommand.Execute(null);
-        Assert.True(harness.Main.IsArchive);
+        harness.App.Settings.Update(s => s with { ChatModel = "gemma3:12b" });
 
-        harness.Main.ShowAskCommand.Execute(null);
-        Assert.True(harness.Main.IsAsk);
+        Assert.Equal("Local · gemma3:12b", harness.Main.ModelLine);
     }
 
     [Fact]
-    public async Task A_new_chat_clears_the_conversation_and_returns_to_ask()
-    {
-        using var harness = new DesktopHarness(new FakeChatClient("An answer [1]."));
-        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
-        await harness.AskAsync("engine noise louder");
-        harness.Main.ShowArchiveCommand.Execute(null);
-
-        harness.Main.NewChatCommand.Execute(null);
-
-        Assert.True(harness.Main.IsAsk);
-        Assert.Empty(harness.Chat.Messages);
-    }
-
-    [Fact]
-    public void Settings_open_in_the_right_column_of_the_ask_screen()
+    public void Settings_open_in_the_original_column()
     {
         using var harness = new DesktopHarness();
-        harness.Main.ShowArchiveCommand.Execute(null);
 
         harness.Main.ToggleSettingsCommand.Execute(null);
 
-        Assert.True(harness.Main.IsAsk);
         Assert.IsType<SettingsPanelViewModel>(harness.Panel.Current);
     }
 
     [Fact]
-    public async Task The_archive_tab_badge_counts_failed_documents()
+    public async Task A_new_question_keeps_the_earlier_exchanges_and_clears_the_focus()
     {
-        using var harness = new DesktopHarness();
-        harness.App.Embedder.FailWith = new HttpRequestException("model server is down");
-        await harness.AddDocumentAsync("broken.txt", "This will fail to index.");
+        using var harness = new DesktopHarness(new FakeChatClient("An answer [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
 
-        Assert.Equal("1 failed", harness.Main.FailureBadge);
+        harness.Main.NewQuestionCommand.Execute(null);
+
+        Assert.Single(harness.Chat.Exchanges);
+        Assert.Null(harness.Chat.FocusedExchange);
     }
 
     [Fact]
-    public async Task The_archive_tab_has_no_badge_when_nothing_failed()
+    public async Task The_session_line_counts_questions()
     {
-        using var harness = new DesktopHarness();
-        await harness.AddDocumentAsync("fine.txt", "This indexes well.");
+        using var harness = new DesktopHarness(new FakeChatClient("An answer [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
-        Assert.Null(harness.Main.FailureBadge);
+        Assert.Equal("Session · 0 questions", harness.Chat.SessionLine);
+
+        await harness.AskAsync("engine noise louder");
+        Assert.Equal("Session · 1 question", harness.Chat.SessionLine);
+
+        await harness.AskAsync("engine noise again");
+        Assert.Equal("Session · 2 questions", harness.Chat.SessionLine);
     }
 }
 
 public sealed class PanelHostTests
 {
-    private static CitationViewModel Citation(DesktopHarness harness, Guid documentId, int number) =>
+    private static CitationViewModel Citation(Guid documentId, int number) =>
         new(new Scrinium.Core.Retrieval.Citation(
             number, documentId, "note.txt", null, new DateOnly(2026, 1, 1), "preview",
             SourceLocation.Start(documentId)));
 
     [Fact]
-    public void The_panel_starts_collapsed()
+    public void The_column_starts_on_an_empty_original()
     {
         using var harness = new DesktopHarness();
 
-        Assert.True(harness.Panel.IsCollapsed);
-        Assert.False(harness.Panel.IsOpen);
-        Assert.Null(harness.Panel.Current);
+        var original = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
+
+        Assert.Equal(OriginalState.Empty, original.State);
+        Assert.True(original.IsEmpty);
     }
 
     [Fact]
-    public async Task Showing_a_preview_opens_the_panel_and_closing_it_collapses_it()
+    public async Task A_citation_shows_the_passage_with_its_position_among_the_citations()
     {
         using var harness = new DesktopHarness();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
-        var citation = Citation(harness, document.Id, 1);
+        var first = Citation(document.Id, 1);
+        var second = Citation(document.Id, 2);
 
-        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(citation, [citation]));
-        Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
-        Assert.True(harness.Panel.IsOpen);
+        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(second, [first, second]));
 
-        harness.Panel.Close();
-        Assert.True(harness.Panel.IsCollapsed);
-        Assert.True(harness.Panel.CanReopen);
+        var original = (PreviewPanelViewModel)harness.Panel.Current;
+        Assert.Equal(OriginalState.Passage, original.State);
+        Assert.Equal("ORIGINAL · 2 OF 2", original.Kicker);
+        Assert.True(original.HasPager);
     }
 
     [Fact]
-    public async Task A_collapsed_panel_reopens_with_the_last_shown_original()
+    public async Task A_document_opened_from_the_archive_has_no_passage_and_no_pager()
     {
         using var harness = new DesktopHarness();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
-        var citation = Citation(harness, document.Id, 2);
-        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(citation, [citation]));
-        harness.Panel.Close();
 
-        harness.Panel.Expand();
+        await harness.Panel.ShowPreviewAsync(PreviewRequest.ForDocument(document.Id, "note.txt"));
 
-        var preview = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
-        Assert.Equal(2, preview.Number);
+        var original = (PreviewPanelViewModel)harness.Panel.Current;
+        Assert.Equal(OriginalState.Document, original.State);
+        Assert.Equal("ORIGINAL", original.Kicker);
+        Assert.False(original.HasPager);
+        Assert.Equal(document.Id, original.DocumentId);
     }
 
     [Fact]
-    public void Settings_opened_from_a_collapsed_panel_return_to_collapsed()
+    public async Task A_missing_original_is_reported_as_unavailable()
     {
         using var harness = new DesktopHarness();
+
+        await harness.Panel.ShowPreviewAsync(PreviewRequest.ForDocument(Guid.NewGuid(), "gone.txt"));
+
+        var original = (PreviewPanelViewModel)harness.Panel.Current;
+        Assert.Equal(OriginalState.Unavailable, original.State);
+    }
+
+    [Fact]
+    public async Task Next_and_previous_wrap_around_the_citations()
+    {
+        using var harness = new DesktopHarness();
+        var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        var first = Citation(document.Id, 1);
+        var second = Citation(document.Id, 2);
+        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(second, [first, second]));
+
+        await ((PreviewPanelViewModel)harness.Panel.Current).NextCommand.ExecuteAsync(null);
+        Assert.Equal(1, ((PreviewPanelViewModel)harness.Panel.Current).Number);
+
+        await ((PreviewPanelViewModel)harness.Panel.Current).PreviousCommand.ExecuteAsync(null);
+        Assert.Equal(2, ((PreviewPanelViewModel)harness.Panel.Current).Number);
+    }
+
+    [Fact]
+    public void Opening_settings_twice_returns_to_the_original()
+    {
+        using var harness = new DesktopHarness();
+        var before = harness.Panel.Current;
 
         harness.Panel.ShowSettings();
         Assert.IsType<SettingsPanelViewModel>(harness.Panel.Current);
 
-        harness.Panel.Close();
-        Assert.True(harness.Panel.IsCollapsed);
+        harness.Panel.ShowSettings();
+        Assert.Same(before, harness.Panel.Current);
     }
 
     [Fact]
@@ -139,7 +157,7 @@ public sealed class PanelHostTests
     {
         using var harness = new DesktopHarness();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
-        var citation = Citation(harness, document.Id, 1);
+        var citation = Citation(document.Id, 1);
         await harness.Panel.ShowPreviewAsync(PreviewRequest.For(citation, [citation]));
         var before = harness.Panel.Current;
 
@@ -150,35 +168,20 @@ public sealed class PanelHostTests
     }
 
     [Fact]
-    public void Opening_settings_twice_closes_them()
-    {
-        using var harness = new DesktopHarness();
-
-        harness.Panel.ShowSettings();
-        harness.Panel.ShowSettings();
-
-        Assert.True(harness.Panel.IsCollapsed);
-    }
-
-    [Fact]
-    public async Task The_citation_switcher_opens_another_citation_of_the_same_answer()
+    public async Task Showing_an_original_while_settings_are_open_replaces_the_settings()
     {
         using var harness = new DesktopHarness();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
-        var first = Citation(harness, document.Id, 1);
-        var second = Citation(harness, document.Id, 2);
-        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(first, [first, second]));
-        var preview = (PreviewPanelViewModel)harness.Panel.Current!;
+        var citation = Citation(document.Id, 1);
+        harness.Panel.ShowSettings();
 
-        await preview.SwitchToCommand.ExecuteAsync(second);
+        await harness.Panel.ShowPreviewAsync(PreviewRequest.For(citation, [citation]));
 
-        var switched = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
-        Assert.Equal(2, switched.Number);
-        Assert.Equal([1, 2], switched.Citations.Select(c => c.Number));
+        Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
     }
 }
 
-public sealed class ChatViewModelFocusTests
+public sealed class ExchangeTests
 {
     private static async Task<DesktopHarness> HarnessWithTwoAnswersAsync()
     {
@@ -190,83 +193,165 @@ public sealed class ChatViewModelFocusTests
     }
 
     [Fact]
-    public async Task The_latest_answer_is_focused_and_feeds_the_notes()
+    public async Task Each_question_makes_an_exchange_and_the_latest_is_focused()
     {
         using var harness = await HarnessWithTwoAnswersAsync();
 
-        var assistants = harness.Chat.Messages.Where(m => m.IsAssistant).ToList();
-
-        Assert.Same(assistants[^1], harness.Chat.FocusedMessage);
-        Assert.NotEmpty(harness.Chat.FocusedMessage!.Citations);
+        Assert.Equal(2, harness.Chat.Exchanges.Count);
+        Assert.Same(harness.Chat.Exchanges[^1], harness.Chat.FocusedExchange);
+        Assert.True(harness.Chat.Exchanges[^1].IsFocused);
+        Assert.False(harness.Chat.Exchanges[0].IsFocused);
     }
 
     [Fact]
-    public async Task Focusing_an_earlier_answer_changes_the_notes()
+    public async Task An_arriving_answer_opens_its_first_cited_source_in_the_original()
     {
         using var harness = await HarnessWithTwoAnswersAsync();
-        var first = harness.Chat.Messages.First(m => m.IsAssistant);
 
-        harness.Chat.FocusMessageCommand.Execute(first);
+        var original = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
 
-        Assert.Same(first, harness.Chat.FocusedMessage);
+        Assert.Equal(OriginalState.Passage, original.State);
+        Assert.Equal(1, original.Number);
+        Assert.Equal(1, harness.Chat.FocusedExchange!.Answer.ActiveCitationNumber);
     }
 
     [Fact]
-    public async Task Opening_a_citation_marks_it_active_in_its_answer_only()
+    public async Task Focusing_an_earlier_exchange_expands_it_and_shows_its_source()
     {
         using var harness = await HarnessWithTwoAnswersAsync();
-        var first = harness.Chat.Messages.First(m => m.IsAssistant);
-        var second = harness.Chat.Messages.Last(m => m.IsAssistant);
+        var first = harness.Chat.Exchanges[0];
 
-        await harness.Chat.OpenCitationCommand.ExecuteAsync(first.Citations[0]);
+        await harness.Chat.FocusExchangeCommand.ExecuteAsync(first);
 
-        Assert.Equal(first.Citations[0].Number, first.ActiveCitationNumber);
-        Assert.Null(second.ActiveCitationNumber);
-        Assert.Same(first, harness.Chat.FocusedMessage);
-        Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
+        Assert.Same(first, harness.Chat.FocusedExchange);
+        Assert.True(first.IsFocused);
+        Assert.False(harness.Chat.Exchanges[1].IsFocused);
+        Assert.Equal(1, first.Answer.ActiveCitationNumber);
+        Assert.Null(harness.Chat.Exchanges[1].Answer.ActiveCitationNumber);
     }
 
     [Fact]
-    public async Task Collapsing_the_panel_clears_the_active_citation()
+    public async Task A_compressed_row_carries_the_time_and_a_short_answer_without_markers()
     {
         using var harness = await HarnessWithTwoAnswersAsync();
-        var answer = harness.Chat.FocusedMessage!;
-        await harness.Chat.OpenCitationCommand.ExecuteAsync(answer.Citations[0]);
 
-        harness.Panel.Close();
+        var row = harness.Chat.Exchanges[0];
 
-        Assert.Null(answer.ActiveCitationNumber);
+        Assert.Matches(@"^\d\d:\d\d$", row.TimeText);
+        Assert.Equal("It got louder.", row.ShortAnswer);
     }
 
     [Fact]
-    public async Task Expanding_without_a_previous_original_opens_citation_one_of_the_focused_answer()
+    public async Task The_strip_lists_only_cited_sources()
     {
         using var harness = await HarnessWithTwoAnswersAsync();
 
-        await harness.Chat.ExpandOriginalCommand.ExecuteAsync(null);
+        var answer = harness.Chat.FocusedExchange!.Answer;
 
-        var preview = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
-        Assert.Equal(harness.Chat.FocusedMessage!.Citations[0].Number, preview.Number);
+        Assert.All(answer.CitedCitations, c => Assert.True(c.IsCited));
+        Assert.Contains(answer.CitedCitations, c => c.Number == 1);
+    }
+
+    [Fact]
+    public async Task The_stats_line_counts_retrieved_and_cited_fragments()
+    {
+        using var harness = await HarnessWithTwoAnswersAsync();
+
+        Assert.Equal(
+            "1 fragment retrieved · 1 cited · answered from your documents only",
+            harness.Chat.FocusedExchange!.Answer.StatsLine);
+    }
+
+    [Fact]
+    public async Task Opening_a_citation_marks_it_active_in_its_exchange_only()
+    {
+        using var harness = await HarnessWithTwoAnswersAsync();
+        var first = harness.Chat.Exchanges[0];
+        var second = harness.Chat.Exchanges[1];
+
+        await harness.Chat.OpenCitationCommand.ExecuteAsync(first.Answer.Citations[0]);
+
+        Assert.Equal(1, first.Answer.ActiveCitationNumber);
+        Assert.Null(second.Answer.ActiveCitationNumber);
+        Assert.Same(first, harness.Chat.FocusedExchange);
+    }
+
+    [Fact]
+    public async Task A_new_question_requests_the_composer_focus()
+    {
+        using var harness = await HarnessWithTwoAnswersAsync();
+        var requested = 0;
+        harness.Chat.FocusComposerRequested += () => requested++;
+
+        harness.Chat.NewQuestionCommand.Execute(null);
+
+        Assert.Equal(1, requested);
+        Assert.Null(harness.Chat.FocusedExchange);
+        Assert.DoesNotContain(harness.Chat.Exchanges, e => e.IsFocused);
+    }
+
+    [Fact]
+    public async Task A_new_question_starts_without_the_earlier_history()
+    {
+        var chat = new FakeChatClient("It got louder [1].");
+        using var harness = new DesktopHarness(chat);
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder walrus");
+
+        harness.Chat.NewQuestionCommand.Execute(null);
+        await harness.AskAsync("engine noise September");
+
+        var lastRequest = chat.Requests[^1];
+        Assert.DoesNotContain(lastRequest, m => (m.Text ?? "").Contains("walrus"));
+    }
+
+    [Fact]
+    public async Task A_follow_up_without_a_new_question_keeps_the_history()
+    {
+        var chat = new FakeChatClient("It got louder [1].");
+        using var harness = new DesktopHarness(chat);
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder walrus");
+
+        await harness.AskAsync("engine noise September");
+
+        Assert.Contains(chat.Requests[^1], m => (m.Text ?? "").Contains("walrus"));
+    }
+
+    [Fact]
+    public void The_composer_placeholder_changes_after_the_first_question()
+    {
+        using var harness = new DesktopHarness();
+
+        Assert.Equal("Ask about your documents…", harness.Chat.ComposerPlaceholder);
+    }
+
+    [Fact]
+    public async Task The_composer_asks_for_a_follow_up_once_there_is_an_exchange()
+    {
+        using var harness = await HarnessWithTwoAnswersAsync();
+
+        Assert.Equal("Ask a follow-up…", harness.Chat.ComposerPlaceholder);
     }
 }
 
 public sealed class ArchiveRowTests
 {
     [Fact]
-    public async Task A_ready_document_is_labelled_ready_with_its_chunk_count()
+    public async Task A_ready_document_shows_its_type_and_chunk_count()
     {
         using var harness = new DesktopHarness();
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
         var row = Assert.Single(harness.Sources.Items);
 
-        Assert.Equal("Ready", row.StateLabel);
-        Assert.Equal("TXT", row.KindLabel);
+        Assert.Equal("TXT · 1 chunk", row.DetailText);
+        Assert.Equal("01", row.NumberText);
         Assert.False(row.CanRetry);
     }
 
     [Fact]
-    public async Task A_failed_document_offers_a_retry_and_shows_the_reason()
+    public async Task A_failed_document_offers_a_retry_and_shows_the_reason_instead_of_the_type()
     {
         using var harness = new DesktopHarness();
         harness.App.Embedder.FailWith = new HttpRequestException("model server is down");
@@ -274,27 +359,86 @@ public sealed class ArchiveRowTests
 
         var row = Assert.Single(harness.Sources.Items);
 
-        Assert.Equal("Failed", row.StateLabel);
         Assert.True(row.CanRetry);
-        Assert.Contains("model server is down", row.StatusText);
+        Assert.Contains("model server is down", row.DetailText);
+        Assert.True(row.IsFailed);
     }
 
     [Fact]
-    public async Task The_archive_summary_names_the_count_and_the_embedding_model()
+    public async Task The_header_names_the_count_and_the_embedding_model()
     {
         using var harness = new DesktopHarness();
         await harness.AddDocumentAsync("a.txt", "First note.");
         await harness.AddDocumentAsync("b.txt", "Second note.");
 
-        Assert.Equal("2 documents · stays on this computer · bge-m3", harness.Sources.Summary);
+        Assert.Equal("2 · bge-m3", harness.Sources.Summary);
     }
 
     [Fact]
-    public async Task A_single_document_is_not_pluralised()
+    public async Task Rows_are_numbered_in_library_order_even_when_filtered()
     {
         using var harness = new DesktopHarness();
-        await harness.AddDocumentAsync("a.txt", "First note.");
+        await harness.AddDocumentAsync("alpha.txt", "First note.");
+        await harness.AddDocumentAsync("beta.txt", "Second note.");
 
-        Assert.StartsWith("1 document ·", harness.Sources.Summary);
+        harness.Sources.Filter = "beta";
+
+        var row = Assert.Single(harness.Sources.Items);
+        Assert.Equal("beta.txt", row.Title);
+        Assert.NotEqual("", row.NumberText);
+    }
+
+    [Fact]
+    public async Task Documents_cited_in_the_focused_answer_carry_their_citation_numbers()
+    {
+        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
+
+        var row = Assert.Single(harness.Sources.Items);
+
+        Assert.Equal("1", row.CitationMarks);
+        Assert.True(row.IsOpenInOriginal);
+    }
+
+    [Fact]
+    public async Task A_new_question_clears_the_marks()
+    {
+        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
+
+        harness.Main.NewQuestionCommand.Execute(null);
+
+        var row = Assert.Single(harness.Sources.Items);
+        Assert.Equal("", row.CitationMarks);
+    }
+
+    [Fact]
+    public async Task Clicking_a_row_opens_that_document_without_a_highlight()
+    {
+        using var harness = new DesktopHarness();
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        var row = Assert.Single(harness.Sources.Items);
+
+        await harness.Sources.OpenCommand.ExecuteAsync(row);
+
+        var original = (PreviewPanelViewModel)harness.Panel.Current;
+        Assert.Equal(OriginalState.Document, original.State);
+        Assert.True(harness.Sources.Items.Single().IsOpenInOriginal);
+    }
+
+    [Fact]
+    public async Task Deleting_the_open_document_empties_the_original()
+    {
+        using var harness = new DesktopHarness();
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        var row = Assert.Single(harness.Sources.Items);
+        await harness.Sources.OpenCommand.ExecuteAsync(row);
+
+        await harness.Sources.DeleteCommand.ExecuteAsync(row);
+
+        var original = (PreviewPanelViewModel)harness.Panel.Current;
+        Assert.Equal(OriginalState.Empty, original.State);
     }
 }

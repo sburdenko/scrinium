@@ -1,12 +1,15 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using Scrinium.Core.Documents;
 
 namespace Scrinium.Desktop.ViewModels;
 
-public sealed class SourceItemViewModel(Document document, string currentEmbeddingModel)
+public sealed partial class SourceItemViewModel(Document document, string currentEmbeddingModel, int position) : ObservableObject
 {
     public Guid Id { get; } = document.Id;
 
     public string Title { get; } = document.Title;
+
+    public string NumberText { get; } = (position + 1).ToString("00");
 
     public string KindLabel { get; } = document.Kind switch
     {
@@ -14,8 +17,6 @@ public sealed class SourceItemViewModel(Document document, string currentEmbeddi
         DocumentKind.Markdown => "MD",
         _ => "TXT"
     };
-
-    public string DateText { get; } = document.FileDate.ToString("yyyy-MM-dd");
 
     public SourceStatus Status { get; } = document.State switch
     {
@@ -30,22 +31,15 @@ public sealed class SourceItemViewModel(Document document, string currentEmbeddi
 
     public string StatusText { get; } = document.State switch
     {
-        IndexState.Pending => "queued",
-        IndexState.Indexing => "indexing…",
-        IndexState.Ready ready when ready.EmbeddingModel != currentEmbeddingModel => "needs reindexing",
+        IndexState.Pending => "Queued",
+        IndexState.Indexing => "Indexing…",
+        IndexState.Ready ready when ready.EmbeddingModel != currentEmbeddingModel => "Needs reindexing",
         IndexState.Ready ready => ready.ChunkCount == 1 ? "1 chunk" : $"{ready.ChunkCount} chunks",
         IndexState.Failed failed => failed.Error,
         _ => ""
     };
 
-    public string StateLabel { get; } = document.State switch
-    {
-        IndexState.Pending => "Queued",
-        IndexState.Indexing => "Indexing",
-        IndexState.Ready ready when ready.EmbeddingModel != currentEmbeddingModel => "Needs reindex",
-        IndexState.Ready => "Ready",
-        _ => "Failed"
-    };
+    public string DetailText => IsReady ? $"{KindLabel} · {StatusText}" : StatusText;
 
     public bool CanRetry => IsFailed;
 
@@ -54,4 +48,13 @@ public sealed class SourceItemViewModel(Document document, string currentEmbeddi
     public bool IsBusy => Status is SourceStatus.Waiting or SourceStatus.Indexing;
 
     public bool IsReady => Status == SourceStatus.Ready && !IsStale;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCited))]
+    private string _citationMarks = "";
+
+    public bool IsCited => CitationMarks.Length > 0;
+
+    [ObservableProperty]
+    private bool _isOpenInOriginal;
 }

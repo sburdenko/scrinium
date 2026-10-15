@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="Bg" Color="#0D1B2E" />
+  <SolidColorBrush x:Key="Surface" Color="#12243B" />
+  <SolidColorBrush x:Key="SurfaceRaised" Color="#162A45" />
+  <SolidColorBrush x:Key="AccentSoft" Color="#16304F" />
+  <SolidColorBrush x:Key="Line" Color="#2A4466" />
+  <SolidColorBrush x:Key="Ink" Color="#F6EFC9" />
+  <SolidColorBrush x:Key="InkSoft" Color="#C9D4E0" />
+  <SolidColorBrush x:Key="InkMuted" Color="#9FB3CC" />
+  <SolidColorBrush x:Key="InkFaint" Color="#6F86A6" />
+  <SolidColorBrush x:Key="Accent" Color="#FFD60A" />
+  <SolidColorBrush x:Key="AccentHover" Color="#F0C800" />
+  <SolidColorBrush x:Key="AccentPressed" Color="#E0BC00" />
+  <SolidColorBrush x:Key="OnAccent" Color="#0D1B2E" />
+  <SolidColorBrush x:Key="Blue" Color="#7CC4FF" />
+  <SolidColorBrush x:Key="Highlight" Color="#433A0C" />
+  <SolidColorBrush x:Key="HighlightInk" Color="#FFF3B0" />
+  <SolidColorBrush x:Key="Danger" Color="#FF8A73" />
+
+  <SolidColorBrush x:Key="InkTint4" Color="#0AF6EFC9" />
+  <SolidColorBrush x:Key="InkTint7" Color="#12F6EFC9" />
+  <SolidColorBrush x:Key="InkTint14" Color="#24F6EFC9" />
+  <SolidColorBrush x:Key="InkBorderHover" Color="#73F6EFC9" />
+  <SolidColorBrush x:Key="AccentTint10" Color="#1AFFD60A" />
+  <SolidColorBrush x:Key="AccentTint18" Color="#2EFFD60A" />
+
+  <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="#FFD60A" />
+  <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="#FFD60A" />
+</ResourceDictionary>
