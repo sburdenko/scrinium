@@ -12,8 +12,8 @@ public sealed partial class PassageRefiner(
     IEmbeddingGenerator<string, Embedding<float>> embedder,
     ISettingsProvider settings)
 {
-    private const double NumberWeight = 0.3;
-    private const double QuestionWeight = 0.5;
+    private const double QuestionWeight = 0.3;
+    private const double SameEvidence = 1e-9;
     private const int PreviewLength = 220;
 
     [GeneratedRegex(@"\d+(?:[.,  ]\d{3})*(?:[.,]\d+)?")]
@@ -65,19 +65,20 @@ public sealed partial class PassageRefiner(
         foreach (var (fragment, spans, claim) in work)
         {
             var claimVector = VectorMath.Normalize(embeddings[next++].Vector.Span);
-            var best = (Span: spans[0], Score: double.NegativeInfinity);
+            var scored = new List<(PassageSpan Span, double Numbers, double Likeness)>(spans.Count);
 
             foreach (var span in spans)
             {
                 var sentence = fragment.ChunkText.Substring(span.Start, span.Length);
                 var vector = VectorMath.Normalize(embeddings[next++].Vector.Span);
-                var score = VectorMath.Dot(claimVector, vector)
-                    + (questionVector is null ? 0 : QuestionWeight * VectorMath.Dot(questionVector, vector))
-                    + NumberWeight * NumberEvidence.Overlap(claim, sentence, questionNumbers);
-                if (score > best.Score)
-                    best = (span, score);
+                var likeness = VectorMath.Dot(claimVector, vector)
+                    + (questionVector is null ? 0 : QuestionWeight * VectorMath.Dot(questionVector, vector));
+                scored.Add((span, NumberEvidence.Overlap(claim, sentence, questionNumbers), likeness));
             }
 
+            // A sentence that repeats the figures the answer states is the evidence; likeness only chooses among those.
+            var strongest = scored.Max(s => s.Numbers);
+            var best = scored.Where(s => s.Numbers >= strongest - SameEvidence).MaxBy(s => s.Likeness);
             refined[fragment.Citation.Number] = Place(fragment, best.Span);
         }
 

@@ -134,19 +134,26 @@ public sealed class PassageRefinerTests : IDisposable
         Assert.Equal("The value is 4400 here.", Assert.Single(refined).Preview);
     }
 
-    private const string Hours =
-        "Steuerberatung Müller & Partner ist eine fiktive Kanzlei für dieses Demo-Projekt. " +
-        "Am Samstag und Sonntag bleibt die Kanzlei geschlossen.";
+    [Fact]
+    public async Task A_short_answer_is_placed_by_the_question()
+    {
+        var fragment = Fragment("Montags bis freitags ist die Kanzlei von 8:30 bis 17 Uhr geöffnet. Am Sonntag bleibt die Kanzlei geschlossen.");
+
+        var refined = await Refiner.RefineAsync([fragment], "Ja [1].", "Ist die Kanzlei am Sonntag geschlossen?");
+
+        Assert.Equal("Am Sonntag bleibt die Kanzlei geschlossen.", Assert.Single(refined).Preview);
+    }
 
     [Fact]
-    public async Task The_question_helps_choose_between_sentences_that_share_the_answers_words()
+    public async Task A_sentence_with_the_claimed_number_wins_over_a_longer_sentence_that_sounds_alike()
     {
-        var fragment = Fragment(Hours);
+        var fragment = Fragment(
+            "With annual billing the Business plan costs 1,910.40 euros per year and the Team plan costs 758.40 euros per year.\n" +
+            "| Business | 199 |");
 
         var refined = await Refiner.RefineAsync([fragment],
-            "Nein, die Steuerberatung Müller & Partner hat sonntags geschlossen [1].",
-            "Ist die Kanzlei am Sonntag geschlossen?");
+            "The Business plan costs 199 euros per month [1].", "What does the Business plan cost per month?");
 
-        Assert.Equal("Am Samstag und Sonntag bleibt die Kanzlei geschlossen.", Assert.Single(refined).Preview);
+        Assert.Equal("| Business | 199 |", Assert.Single(refined).Preview);
     }
 }
