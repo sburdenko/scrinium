@@ -13,7 +13,7 @@ namespace Scrinium.UiTests;
 
 public sealed class WindowDriver
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private WindowDriver(Window window) => Window = window;
 

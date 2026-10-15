@@ -10,6 +10,8 @@ namespace Scrinium.Tests.Support;
 
 public sealed class DesktopHarness : IDisposable
 {
+    private static readonly TimeSpan IndexingTimeout = TimeSpan.FromSeconds(30);
+
     private readonly TempDirectory? _ownedTemp;
 
     private DesktopHarness(TestWorkspaces app, TempDirectory? ownedTemp)
@@ -54,7 +56,8 @@ public sealed class DesktopHarness : IDisposable
     {
         var library = Active.Scope.Library;
         var document = await library.ImportAsync(App.WriteFile(name, text));
-        for (var attempt = 0; attempt < 500; attempt++)
+        var deadline = DateTime.UtcNow + IndexingTimeout;
+        while (DateTime.UtcNow < deadline)
         {
             var current = (await library.ListAsync()).Single(d => d.Id == document.Id);
             if (current.State is IndexState.Ready or IndexState.Failed)

@@ -8,6 +8,12 @@ internal static class SqliteSchema
 
     public static void Apply(SqliteConnection connection)
     {
+        using (var wal = connection.CreateCommand())
+        {
+            wal.CommandText = "PRAGMA journal_mode = WAL";
+            wal.ExecuteNonQuery();
+        }
+
         using var read = connection.CreateCommand();
         read.CommandText = "PRAGMA user_version";
         var current = Convert.ToInt32(read.ExecuteScalar());

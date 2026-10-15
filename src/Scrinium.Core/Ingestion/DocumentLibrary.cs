@@ -14,6 +14,9 @@ public sealed class DocumentLibrary(
 
     public event Action<Guid>? DocumentChanged;
 
+    /// <summary>Raised when processing a document failed outside the pipeline's own error handling; the worker goes on.</summary>
+    public event Action<Guid, Exception>? ProcessingFailed;
+
     public Task<IReadOnlyList<Document>> ListAsync(CancellationToken ct = default) => store.ListAsync(ct);
 
     public async Task<Document> ImportAsync(string sourcePath, CancellationToken ct = default)
@@ -86,6 +89,10 @@ public sealed class DocumentLibrary(
             try
             {
                 await pipeline.ProcessAsync(id, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                ProcessingFailed?.Invoke(id, ex);
             }
             finally
             {
