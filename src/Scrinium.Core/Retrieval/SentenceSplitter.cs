@@ -42,7 +42,8 @@ public static class SentenceSplitter
     private static bool LineBreakEndsPassage(string text, int start, int index)
     {
         var lineStart = index == 0 ? 0 : text.LastIndexOf('\n', index - 1) + 1;
-        if (text.AsSpan(lineStart, index - lineStart).TrimStart().StartsWith("|"))
+        var line = text.AsSpan(lineStart, index - lineStart).TrimStart();
+        if (line.StartsWith("|") || IsHeading(line) || StartsBlankLine(text, index))
             return true;
 
         var last = index - 1;
@@ -57,6 +58,17 @@ public static class SentenceSplitter
             next++;
 
         return StartsListItem(text, next) || (next < text.Length && text[next] == '|') || index - start >= MaxRunWithoutBreak;
+    }
+
+    private static bool IsHeading(ReadOnlySpan<char> line) => line.StartsWith("#");
+
+    private static bool StartsBlankLine(string text, int newline)
+    {
+        var next = newline + 1;
+        while (next < text.Length && text[next] is ' ' or '\t' or '\r')
+            next++;
+
+        return next < text.Length && text[next] == '\n';
     }
 
     private static bool StartsListItem(string text, int index)
@@ -93,7 +105,7 @@ public static class SentenceSplitter
 
         foreach (var span in spans)
         {
-            if (text[span.Start] == '|')
+            if (text[span.Start] is '|' or '#')
             {
                 if (carry is { } held)
                     merged.Add(held);

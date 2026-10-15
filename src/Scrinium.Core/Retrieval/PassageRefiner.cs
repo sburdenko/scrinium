@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using Scrinium.Core.Chat;
@@ -88,18 +89,18 @@ public sealed partial class PassageRefiner(
     {
         var claims = new Dictionary<int, List<string>>();
         var parts = CitationMarkers.Split(answer);
-        var buffer = "";
+        var sinceLastMarker = new StringBuilder();
 
         for (var i = 0; i < parts.Count; i++)
         {
             switch (parts[i])
             {
                 case AnswerPart.Plain plain:
-                    buffer = plain.Text;
+                    sinceLastMarker.Append(plain.Text);
                     break;
 
                 case AnswerPart.Marker marker:
-                    var claim = LastSentence(buffer);
+                    var claim = Clean(sinceLastMarker.ToString());
                     if (claim.Length == 0 && i + 1 < parts.Count && parts[i + 1] is AnswerPart.Plain following)
                         claim = FirstSentence(following.Text);
 
@@ -113,7 +114,7 @@ public sealed partial class PassageRefiner(
                         }
                     }
 
-                    buffer = "";
+                    sinceLastMarker.Clear();
                     break;
             }
         }
@@ -121,13 +122,15 @@ public sealed partial class PassageRefiner(
         return claims;
     }
 
-    private static string LastSentence(string text) =>
-        text.Split(['.', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .LastOrDefault() ?? "";
+    private static string Clean(string text) =>
+        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim('.', ',', ';', ':', ' ');
 
-    private static string FirstSentence(string text) =>
-        text.Split(['.', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .FirstOrDefault() ?? "";
+    private static string FirstSentence(string text)
+    {
+        var cleaned = Clean(text);
+        var spans = SentenceSplitter.Split(cleaned);
+        return spans.Count == 0 ? "" : cleaned.Substring(spans[0].Start, spans[0].Length);
+    }
 
     private static double NumberOverlap(string claim, string sentence)
     {

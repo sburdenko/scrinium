@@ -116,4 +116,25 @@ public class SentenceSplitterTests
         Assert.All(spans, s => Assert.Equal(text.Substring(s.Start, s.Length).Trim(), text.Substring(s.Start, s.Length)));
         Assert.Equal("Second sentence is also long enough.", text.Substring(spans[1].Start, spans[1].Length));
     }
+
+    [Fact]
+    public void A_markdown_heading_is_a_passage_of_its_own()
+    {
+        var text = "## Availability\n\nPaid plans are covered by a monthly availability target of 99.5 percent.";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(["## Availability", "Paid plans are covered by a monthly availability target of 99.5 percent."], sentences);
+    }
+
+    [Fact]
+    public void A_blank_line_ends_a_passage_even_without_punctuation()
+    {
+        var text = "Opening hours on weekdays from nine to six\n\nSaturdays by appointment only for existing clients";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(2, sentences.Count);
+        Assert.StartsWith("Saturdays", sentences[1]);
+    }
 }
