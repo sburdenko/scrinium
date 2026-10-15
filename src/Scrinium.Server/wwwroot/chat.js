@@ -101,6 +101,11 @@
           state.text += data;
           renderAnswer(answer, state);
           scrollDown();
+        } else if (type === 'declined') {
+          status.hidden = true;
+          state.text = data;
+          state.citations = [];
+          renderAnswer(answer, state);
         } else if (type === 'error') {
           throw new Error(data.error || 'Something went wrong.');
         }

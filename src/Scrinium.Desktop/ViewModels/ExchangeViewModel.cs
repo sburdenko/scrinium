@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Scrinium.Core.Chat;
 
@@ -6,9 +5,6 @@ namespace Scrinium.Desktop.ViewModels;
 
 public sealed partial class ExchangeViewModel : ObservableObject
 {
-    [GeneratedRegex(@"\s+([.,;:!?])")]
-    private static partial Regex SpaceBeforePunctuation();
-
     private const int ShortAnswerLimit = 110;
 
     public ExchangeViewModel(string question, DateTimeOffset asked)
@@ -46,9 +42,7 @@ public sealed partial class ExchangeViewModel : ObservableObject
             if (Answer.IsFailed)
                 return "Could not answer";
 
-            var plain = string.Concat(CitationMarkers.Split(Answer.Text).OfType<AnswerPart.Plain>().Select(p => p.Text));
-            var spaced = string.Join(' ', plain.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-            var collapsed = SpaceBeforePunctuation().Replace(spaced, "$1");
+            var collapsed = CitationMarkers.Strip(Answer.Text);
             var cut = collapsed.IndexOfAny(['.', '!', '?']);
             var sentence = cut >= 0 ? collapsed[..(cut + 1)] : collapsed;
             return sentence.Length <= ShortAnswerLimit ? sentence : sentence[..ShortAnswerLimit].TrimEnd() + "…";

@@ -659,4 +659,18 @@ public sealed class WorkspaceSwitchingTests
         Assert.Equal(personal, harness.Active.Workspace);
         Assert.Equal(personal, harness.Main.SelectedWorkspace);
     }
+
+    [Fact]
+    public async Task A_late_decline_replaces_the_answer_and_drops_its_sources()
+    {
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]. ", "Nothing about brakes. ", "[[NONE]]"));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+
+        await harness.AskAsync("engine noise louder");
+
+        var answer = harness.Chat.Exchanges[0].Answer;
+        Assert.Equal("It got louder. Nothing about brakes.", answer.Text);
+        Assert.Empty(answer.Citations);
+        Assert.False(answer.HasCited);
+    }
 }

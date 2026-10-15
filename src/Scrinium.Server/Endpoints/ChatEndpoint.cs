@@ -67,6 +67,7 @@ internal static class ChatEndpoint
                     AnswerEvent.SourcesFound sources => Item("sources", sources.Citations.Select(ToDto).ToList()),
                     AnswerEvent.SourcesRefined refined => Item("sources", refined.Citations.Select(ToDto).ToList()),
                     AnswerEvent.TextDelta delta => Item("delta", delta.Text),
+                    AnswerEvent.Declined declined => Item("declined", declined.Text),
                     _ => Item("done", new { })
                 };
             }
