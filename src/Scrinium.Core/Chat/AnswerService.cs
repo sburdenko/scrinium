@@ -109,7 +109,7 @@ public sealed class AnswerService(
         if (raw.Length > shown)
             yield return new AnswerEvent.TextDelta(raw.ToString(shown, raw.Length - shown));
 
-        var refined = await refiner.RefineAsync(found.Fragments, raw.ToString(), ct);
+        var refined = await refiner.RefineAsync(found.Fragments, raw.ToString(), searchQuery, ct);
         var changed = refined.Zip(found.Fragments, (after, fragment) => after.Location != fragment.Citation.Location).Any(x => x);
         if (changed)
             yield return new AnswerEvent.SourcesRefined(refined);

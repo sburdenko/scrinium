@@ -137,4 +137,16 @@ public class SentenceSplitterTests
         Assert.Equal(2, sentences.Count);
         Assert.StartsWith("Saturdays", sentences[1]);
     }
+
+    [Theory]
+    [InlineData("Die Erklärung ist bis zum 31. Juli des Folgejahres abzugeben. Danach droht ein Zuschlag.")]
+    [InlineData("Die Frist endet am 1. März 2026. Danach droht ein Zuschlag.")]
+    [InlineData("The new plan starts on 3. Oct 2026 for every customer. After that the old plan ends.")]
+    public void A_day_before_a_month_name_does_not_end_the_sentence(string text)
+    {
+        var sentences = Texts(text);
+
+        Assert.Equal(2, sentences.Count);
+        Assert.StartsWith("Danach", sentences[1].Replace("After", "Danach"));
+    }
 }

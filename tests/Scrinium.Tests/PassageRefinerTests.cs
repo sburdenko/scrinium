@@ -28,7 +28,7 @@ public sealed class PassageRefinerTests : IDisposable
     {
         var fragment = Fragment(Chunk);
 
-        var refined = await Refiner.RefineAsync([fragment], "The Team plan allows 1,200 requests per minute [1].");
+        var refined = await Refiner.RefineAsync([fragment], "The Team plan allows 1,200 requests per minute [1].", "Team requests per minute");
 
         var citation = Assert.Single(refined);
         var located = Chunk.Substring(citation.Location.Offset - 100, citation.Location.Length);
@@ -41,7 +41,7 @@ public sealed class PassageRefinerTests : IDisposable
     {
         var fragment = Fragment(Chunk);
 
-        var refined = await Refiner.RefineAsync([fragment], "Business allows 6,000 requests per minute [1].");
+        var refined = await Refiner.RefineAsync([fragment], "Business allows 6,000 requests per minute [1].", "");
 
         Assert.Equal("| Business | 6,000 |", Assert.Single(refined).Preview);
     }
@@ -51,7 +51,7 @@ public sealed class PassageRefinerTests : IDisposable
     {
         var fragment = Fragment(Chunk);
 
-        var refined = await Refiner.RefineAsync([fragment], "The Team plan allows 1,200 requests per minute.");
+        var refined = await Refiner.RefineAsync([fragment], "The Team plan allows 1,200 requests per minute.", "");
 
         Assert.Equal("initial", Assert.Single(refined).Preview);
     }
@@ -61,7 +61,7 @@ public sealed class PassageRefinerTests : IDisposable
     {
         var fragment = Fragment("Only one sentence here.");
 
-        var refined = await Refiner.RefineAsync([fragment], "Only one sentence here [1].");
+        var refined = await Refiner.RefineAsync([fragment], "Only one sentence here [1].", "");
 
         Assert.Equal("initial", Assert.Single(refined).Preview);
     }
@@ -73,7 +73,7 @@ public sealed class PassageRefinerTests : IDisposable
         var second = Fragment("The invoice is due in 14 days. The service credit is 10 percent of the fee.", offset: 500, number: 2);
 
         var refined = await Refiner.RefineAsync(
-            [first, second], "Team allows 1,200 requests per minute [1]. The credit is 10 percent [2].");
+            [first, second], "Team allows 1,200 requests per minute [1]. The credit is 10 percent [2].", "");
 
         Assert.Equal("| Team | 1,200 |", refined[0].Preview);
         Assert.Equal("The service credit is 10 percent of the fee.", refined[1].Preview);
@@ -89,7 +89,7 @@ public sealed class PassageRefinerTests : IDisposable
         var fragment = Fragment(Availability);
 
         var refined = await Refiner.RefineAsync([fragment],
-            "In 2025, paid plans were covered by a monthly availability target of 99.5 percent [1].");
+            "In 2025, paid plans were covered by a monthly availability target of 99.5 percent [1].", "What availability did paid plans guarantee in 2025?");
 
         Assert.Equal("Paid plans are covered by a monthly availability target of 99.5 percent.", Assert.Single(refined).Preview);
     }
@@ -104,7 +104,7 @@ public sealed class PassageRefinerTests : IDisposable
         var fragment = Fragment(Export);
 
         var refined = await Refiner.RefineAsync([fragment],
-            "Nach der Kündigung können Sie Ihre Daten noch 30 Tage lang exportieren. Danach werden die Daten gelöscht [1].");
+            "Nach der Kündigung können Sie Ihre Daten noch 30 Tage lang exportieren. Danach werden die Daten gelöscht [1].", "Wie lange kann ich meine Daten nach der Kündigung exportieren?");
 
         Assert.Equal(
             "Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren.",
@@ -118,9 +118,35 @@ public sealed class PassageRefinerTests : IDisposable
         var second = Fragment(Export, number: 2);
 
         var refined = await Refiner.RefineAsync([first, second],
-            "The target is 99.5 percent [1]. Data can be exported for 30 days [2].");
+            "The target is 99.5 percent [1]. Data can be exported for 30 days [2].", "");
 
         Assert.Equal("Paid plans are covered by a monthly availability target of 99.5 percent.", refined[0].Preview);
         Assert.StartsWith("Wenn Sie Ihr Konto kündigen", refined[1].Preview);
+    }
+
+    [Fact]
+    public async Task Numbers_the_question_already_names_do_not_pull_the_highlight()
+    {
+        var fragment = Fragment("The value is 2026 here. The value is 4400 here.");
+
+        var refined = await Refiner.RefineAsync([fragment], "The value is 4400 for 2026 [1].", "The value for 2026?");
+
+        Assert.Equal("The value is 4400 here.", Assert.Single(refined).Preview);
+    }
+
+    private const string Hours =
+        "Steuerberatung Müller & Partner ist eine fiktive Kanzlei für dieses Demo-Projekt. " +
+        "Am Samstag und Sonntag bleibt die Kanzlei geschlossen.";
+
+    [Fact]
+    public async Task The_question_helps_choose_between_sentences_that_share_the_answers_words()
+    {
+        var fragment = Fragment(Hours);
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Nein, die Steuerberatung Müller & Partner hat sonntags geschlossen [1].",
+            "Ist die Kanzlei am Sonntag geschlossen?");
+
+        Assert.Equal("Am Samstag und Sonntag bleibt die Kanzlei geschlossen.", Assert.Single(refined).Preview);
     }
 }
