@@ -97,12 +97,13 @@ public class PromptBuilderTests
     }
 
     [Fact]
-    public void The_decline_marker_is_reserved_for_fragments_that_say_nothing_relevant()
+    public void The_prompt_tells_a_stated_absence_from_a_missing_mention()
     {
         var prompt = SystemPrompt("question", Fragment(1));
 
-        Assert.Contains("nothing relevant", prompt);
-        Assert.Contains("not included", prompt);
+        Assert.Contains("not included or not possible is an answer", prompt);
+        Assert.Contains("does not mention what was asked is not an answer", prompt);
+        Assert.Contains("never later", prompt);
     }
 
     [Fact]
