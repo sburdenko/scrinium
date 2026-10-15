@@ -26,7 +26,7 @@ public static class PromptBuilder
         Answer in the language of the question. After every claim put the fragment number in square brackets, for example [1].
         Cite only fragments that actually support your answer.
         Begin your reply with [[NONE]] when no fragment states the answer; then say so in one short sentence in the language of the question and cite nothing. [[NONE]] goes at the very start of the reply, never later.
-        A fragment that says something is not available, not included or not possible is an answer: give it and cite it. A fragment that simply does not mention what was asked is not an answer: begin with [[NONE]].
+        A fragment that says something is not available, not included or not possible is an answer: give it and cite it. For example, "Pets are not allowed" answers "Can I bring my dog?" with no. A fragment that simply does not mention what was asked is not an answer: begin with [[NONE]].
         Never put a fragment number on a sentence that says the fragments do not mention something.
         Do not conclude an answer from facts about something else: if the answer is not written in a fragment, begin with [[NONE]].
         If fragments contradict each other, show both versions with their dates.
