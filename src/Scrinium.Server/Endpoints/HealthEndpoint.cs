@@ -1,16 +1,22 @@
 using Scrinium.Core.Documents;
-using Scrinium.Core.Ingestion;
 using Scrinium.Ollama;
 
 namespace Scrinium.Server.Endpoints;
 
 internal static class HealthEndpoint
 {
-    public static void Map(IEndpointRouteBuilder routes) => routes.MapGet("/api/health", HandleAsync);
+    public static void Map(IEndpointRouteBuilder routes) => routes.MapGet("/health", HandleAsync);
 
-    private static async Task<IResult> HandleAsync(DocumentLibrary library, OllamaMonitor monitor, CancellationToken ct)
+    private static async Task<IResult> HandleAsync(
+        ServerWorkspaces workspaces,
+        OllamaMonitor monitor,
+        HttpContext http,
+        CancellationToken ct)
     {
-        var documents = await library.ListAsync(ct);
+        if (workspaces.Resolve(http) is not { } served)
+            return WorkspaceResults.Unknown();
+
+        var documents = await served.Scope.Library.ListAsync(ct);
         var status = await monitor.CheckAsync(ct);
 
         var ollama = status switch

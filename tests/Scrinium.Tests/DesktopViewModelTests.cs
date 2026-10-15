@@ -7,17 +7,17 @@ namespace Scrinium.Tests;
 public sealed class MainViewModelTests
 {
     [Fact]
-    public void The_model_line_names_the_local_chat_model()
+    public async Task The_model_line_names_the_local_chat_model()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         Assert.Equal("Local · qwen3-coder:30b", harness.Main.ModelLine);
     }
 
     [Fact]
-    public void The_model_line_follows_a_settings_change()
+    public async Task The_model_line_follows_a_settings_change()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         harness.App.Settings.Update(s => s with { ChatModel = "gemma3:12b" });
 
@@ -25,9 +25,9 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public void Settings_open_in_the_original_column()
+    public async Task Settings_open_in_the_original_column()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         harness.Main.ToggleSettingsCommand.Execute(null);
 
@@ -37,7 +37,7 @@ public sealed class MainViewModelTests
     [Fact]
     public async Task A_new_question_keeps_the_earlier_exchanges_and_clears_the_focus()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("An answer [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("An answer [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder");
 
@@ -50,7 +50,7 @@ public sealed class MainViewModelTests
     [Fact]
     public async Task The_session_line_counts_questions()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("An answer [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("An answer [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
         Assert.Equal("Session · 0 questions", harness.Chat.SessionLine);
@@ -71,9 +71,9 @@ public sealed class PanelHostTests
             SourceLocation.Start(documentId)));
 
     [Fact]
-    public void The_column_starts_on_an_empty_original()
+    public async Task The_column_starts_on_an_empty_original()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         var original = Assert.IsType<PreviewPanelViewModel>(harness.Panel.Current);
 
@@ -84,7 +84,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task A_citation_shows_the_passage_with_its_position_among_the_citations()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var first = Citation(document.Id, 1);
         var second = Citation(document.Id, 2);
@@ -100,7 +100,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task A_document_opened_from_the_archive_has_no_passage_and_no_pager()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
         await harness.Panel.ShowPreviewAsync(PreviewRequest.ForDocument(document.Id, "note.txt"));
@@ -115,7 +115,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task A_missing_original_is_reported_as_unavailable()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         await harness.Panel.ShowPreviewAsync(PreviewRequest.ForDocument(Guid.NewGuid(), "gone.txt"));
 
@@ -126,7 +126,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task Next_and_previous_wrap_around_the_citations()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var first = Citation(document.Id, 1);
         var second = Citation(document.Id, 2);
@@ -140,9 +140,9 @@ public sealed class PanelHostTests
     }
 
     [Fact]
-    public void Opening_settings_twice_returns_to_the_original()
+    public async Task Opening_settings_twice_returns_to_the_original()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var before = harness.Panel.Current;
 
         harness.Panel.ShowSettings();
@@ -155,7 +155,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task Settings_opened_over_an_original_return_to_that_original()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var citation = Citation(document.Id, 1);
         await harness.Panel.ShowPreviewAsync(PreviewRequest.For(citation, [citation]));
@@ -170,7 +170,7 @@ public sealed class PanelHostTests
     [Fact]
     public async Task Showing_an_original_while_settings_are_open_replaces_the_settings()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         var document = await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var citation = Citation(document.Id, 1);
         harness.Panel.ShowSettings();
@@ -185,7 +185,7 @@ public sealed class ExchangeTests
 {
     private static async Task<DesktopHarness> HarnessWithTwoAnswersAsync()
     {
-        var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder");
         await harness.AskAsync("engine noise louder again");
@@ -294,7 +294,7 @@ public sealed class ExchangeTests
     public async Task A_new_question_starts_without_the_earlier_history()
     {
         var chat = new FakeChatClient("It got louder [1].");
-        using var harness = new DesktopHarness(chat);
+        using var harness = await DesktopHarness.CreateAsync(chat);
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder walrus");
 
@@ -309,7 +309,7 @@ public sealed class ExchangeTests
     public async Task A_follow_up_without_a_new_question_keeps_the_history()
     {
         var chat = new FakeChatClient("It got louder [1].");
-        using var harness = new DesktopHarness(chat);
+        using var harness = await DesktopHarness.CreateAsync(chat);
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder walrus");
 
@@ -319,9 +319,9 @@ public sealed class ExchangeTests
     }
 
     [Fact]
-    public void The_composer_placeholder_changes_after_the_first_question()
+    public async Task The_composer_placeholder_changes_after_the_first_question()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
 
         Assert.Equal("Ask about your documents…", harness.Chat.ComposerPlaceholder);
     }
@@ -340,7 +340,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task A_ready_document_shows_its_type_and_chunk_count()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
         var row = Assert.Single(harness.Sources.Items);
@@ -353,7 +353,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task A_failed_document_offers_a_retry_and_shows_the_reason_instead_of_the_type()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         harness.App.Embedder.FailWith = new HttpRequestException("model server is down");
         await harness.AddDocumentAsync("broken.txt", "This will fail to index.");
 
@@ -367,7 +367,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task The_header_names_the_count_and_the_embedding_model()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         await harness.AddDocumentAsync("a.txt", "First note.");
         await harness.AddDocumentAsync("b.txt", "Second note.");
 
@@ -377,7 +377,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task Rows_are_numbered_in_library_order_even_when_filtered()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         await harness.AddDocumentAsync("alpha.txt", "First note.");
         await harness.AddDocumentAsync("beta.txt", "Second note.");
 
@@ -391,7 +391,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task Documents_cited_in_the_focused_answer_carry_their_citation_numbers()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder");
 
@@ -404,7 +404,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task A_new_question_clears_the_marks()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder");
 
@@ -417,7 +417,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task Clicking_a_row_opens_that_document_without_a_highlight()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var row = Assert.Single(harness.Sources.Items);
 
@@ -431,7 +431,7 @@ public sealed class ArchiveRowTests
     [Fact]
     public async Task Deleting_the_open_document_empties_the_original()
     {
-        using var harness = new DesktopHarness();
+        using var harness = await DesktopHarness.CreateAsync();
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         var row = Assert.Single(harness.Sources.Items);
         await harness.Sources.OpenCommand.ExecuteAsync(row);
@@ -448,7 +448,7 @@ public sealed class SessionTests
     [Fact]
     public async Task A_finished_answer_is_saved_to_the_current_session()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
 
         await harness.AskAsync("engine noise louder");
@@ -462,7 +462,7 @@ public sealed class SessionTests
     [Fact]
     public async Task A_new_question_starts_a_new_session()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await harness.AskAsync("engine noise louder");
 
@@ -475,11 +475,11 @@ public sealed class SessionTests
     [Fact]
     public async Task Recent_sessions_appear_on_an_empty_window()
     {
-        using var first = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var first = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await first.AskAsync("engine noise louder");
 
-        var reopened = first.Reopen();
+        var reopened = await first.ReopenAsync();
         await reopened.Chat.LoadRecentSessionsAsync();
 
         var recent = Assert.Single(reopened.Chat.RecentSessions);
@@ -491,12 +491,12 @@ public sealed class SessionTests
     [Fact]
     public async Task Opening_a_saved_session_restores_its_exchanges_and_sources()
     {
-        using var first = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var first = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await first.AskAsync("engine noise louder");
         await first.AskAsync("engine noise again");
 
-        var reopened = first.Reopen();
+        var reopened = await first.ReopenAsync();
         await reopened.Chat.LoadRecentSessionsAsync();
         await reopened.Chat.OpenSessionCommand.ExecuteAsync(reopened.Chat.RecentSessions[0]);
 
@@ -513,11 +513,11 @@ public sealed class SessionTests
     public async Task A_follow_up_in_a_reopened_session_continues_it_with_its_history()
     {
         var chat = new FakeChatClient("It got louder [1].");
-        using var first = new DesktopHarness(chat);
+        using var first = await DesktopHarness.CreateAsync(chat);
         await first.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         await first.AskAsync("engine noise louder walrus");
 
-        var reopened = first.Reopen();
+        var reopened = await first.ReopenAsync();
         await reopened.Chat.LoadRecentSessionsAsync();
         await reopened.Chat.OpenSessionCommand.ExecuteAsync(reopened.Chat.RecentSessions[0]);
         await reopened.AskAsync("engine noise September");
@@ -530,7 +530,7 @@ public sealed class SessionTests
     [Fact]
     public async Task A_failed_answer_is_not_saved()
     {
-        using var harness = new DesktopHarness(new FakeChatClient("It got louder [1]."));
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
         await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
         harness.App.Embedder.FailWith = new HttpRequestException("model server is down");
 
@@ -538,5 +538,124 @@ public sealed class SessionTests
 
         Assert.True(harness.Chat.Exchanges[0].Answer.IsFailed);
         Assert.Empty(await harness.Sessions.ListRecentAsync(10));
+    }
+}
+
+public sealed class WorkspaceSwitchingTests
+{
+    [Fact]
+    public async Task The_window_opens_the_default_workspace_named_personal()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+
+        var workspace = Assert.Single(harness.Main.Workspaces);
+        Assert.Equal("Personal", workspace.Name);
+        Assert.Equal(workspace, harness.Main.SelectedWorkspace);
+        Assert.Equal("default", harness.App.Settings.Current.Workspace);
+    }
+
+    [Fact]
+    public async Task A_new_workspace_opens_empty_and_is_remembered()
+    {
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
+
+        harness.Main.StartNamingWorkspaceCommand.Execute(null);
+        harness.Main.NewWorkspaceName = "Kestrel Analytics";
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+
+        Assert.Equal("Kestrel Analytics", harness.Active.Workspace.Name);
+        Assert.Empty(harness.Sources.Items);
+        Assert.Empty(harness.Chat.Exchanges);
+        Assert.Empty(harness.Chat.RecentSessions);
+        Assert.Equal("kestrel-analytics", harness.App.Settings.Current.Workspace);
+        Assert.False(harness.Main.IsNamingWorkspace);
+        Assert.Equal(2, harness.Main.Workspaces.Count);
+    }
+
+    [Fact]
+    public async Task Switching_back_restores_the_documents_and_sessions_of_that_workspace()
+    {
+        using var harness = await DesktopHarness.CreateAsync(new FakeChatClient("It got louder [1]."));
+        await harness.AddDocumentAsync("note.txt", "Engine noise got louder in September.");
+        await harness.AskAsync("engine noise louder");
+        harness.Main.NewWorkspaceName = "Work";
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+
+        await harness.Main.SwitchToAsync(harness.Main.Workspaces.Single(w => w.Name == "Personal"));
+
+        Assert.Equal("note.txt", Assert.Single(harness.Sources.Items).Title);
+        Assert.Equal("engine noise louder", Assert.Single(harness.Chat.RecentSessions).Title);
+    }
+
+    [Fact]
+    public async Task Selecting_a_workspace_in_the_picker_switches_to_it()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        harness.Main.NewWorkspaceName = "Work";
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+        var personal = harness.Main.Workspaces.Single(w => w.Name == "Personal");
+
+        harness.Main.SelectedWorkspace = personal;
+        for (var attempt = 0; attempt < 100 && harness.Active.Workspace != personal; attempt++)
+            await Task.Delay(10);
+
+        Assert.Equal(personal, harness.Active.Workspace);
+    }
+
+    [Fact]
+    public async Task The_last_workspace_is_opened_again_on_the_next_start()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        harness.Main.NewWorkspaceName = "Work";
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+
+        var reopened = await harness.ReopenAsync();
+
+        Assert.Equal("Work", reopened.Active.Workspace.Name);
+    }
+
+    [Fact]
+    public async Task A_blank_name_cannot_be_submitted_and_a_too_long_name_is_explained()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        harness.Main.StartNamingWorkspaceCommand.Execute(null);
+
+        harness.Main.NewWorkspaceName = "   ";
+        Assert.False(harness.Main.CreateWorkspaceCommand.CanExecute(null));
+
+        harness.Main.NewWorkspaceName = new string('x', 61);
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+
+        Assert.Contains("at most 60 characters", harness.Main.WorkspaceError);
+        Assert.True(harness.Main.IsNamingWorkspace);
+        Assert.Single(harness.Main.Workspaces);
+    }
+
+    [Fact]
+    public async Task An_unreadable_archive_is_reported_instead_of_crashing_the_window()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        Directory.Delete(harness.Active.Scope.Paths.Root, recursive: true);
+
+        await harness.Sources.InitializeAsync();
+
+        Assert.StartsWith("Could not read the archive", harness.Sources.LastError);
+    }
+
+    [Fact]
+    public async Task Two_quick_switches_end_on_the_last_workspace_chosen()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        harness.Main.NewWorkspaceName = "Work";
+        await harness.Main.CreateWorkspaceCommand.ExecuteAsync(null);
+        var personal = harness.Main.Workspaces.Single(w => w.Name == "Personal");
+        var work = harness.Main.Workspaces.Single(w => w.Name == "Work");
+
+        await Task.WhenAll(harness.Main.SwitchToAsync(personal), harness.Main.SwitchToAsync(work), harness.Main.SwitchToAsync(personal));
+
+        Assert.Equal(personal, harness.Active.Workspace);
+        Assert.Equal(personal, harness.Main.SelectedWorkspace);
     }
 }

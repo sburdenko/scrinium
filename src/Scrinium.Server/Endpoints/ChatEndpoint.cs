@@ -11,15 +11,19 @@ internal static class ChatEndpoint
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public static void Map(IEndpointRouteBuilder routes) => routes.MapPost("/api/chat", HandleAsync);
+    public static void Map(IEndpointRouteBuilder routes) => routes.MapPost("/chat", HandleAsync);
 
     private static async Task<IResult> HandleAsync(
         ChatRequest request,
-        AnswerService answers,
+        ServerWorkspaces workspaces,
         ChatGate gate,
         ServerOptions options,
         HttpContext http)
     {
+        if (workspaces.Resolve(http) is not { } served)
+            return WorkspaceResults.Unknown();
+
+        var answers = served.Scope.Answers;
         var problem = ChatRequestValidator.Validate(request, options);
         if (problem is not null)
             return TypedResults.BadRequest(new ErrorDto(problem));

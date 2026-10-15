@@ -1,9 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Scrinium.Core;
-using Scrinium.Core.Chat;
-using Scrinium.Core.Ingestion;
-using Scrinium.Core.Preview;
+using Scrinium.Core.Workspaces;
 using Scrinium.Extraction;
 using Scrinium.Ollama;
 using Scrinium.Storage;
@@ -42,9 +40,12 @@ public sealed class CompositionTests : IDisposable
     {
         using var provider = Build();
 
-        Assert.NotNull(provider.GetRequiredService<AnswerService>());
-        Assert.NotNull(provider.GetRequiredService<DocumentLibrary>());
-        Assert.NotNull(provider.GetRequiredService<DocumentPreviewService>());
+        var catalog = provider.GetRequiredService<WorkspaceCatalog>();
+        var scope = provider.GetRequiredService<WorkspaceScopeFactory>().Open(catalog.EnsureDefault("Personal"));
+
+        Assert.NotNull(scope.Answers);
+        Assert.NotNull(scope.Library);
+        Assert.NotNull(scope.Previews);
     }
 
     [Fact]

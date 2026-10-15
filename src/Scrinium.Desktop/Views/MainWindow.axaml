@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Scrinium.Desktop.ViewModels"
         xmlns:views="using:Scrinium.Desktop.Views"
+        xmlns:ws="using:Scrinium.Core.Workspaces"
         x:Class="Scrinium.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Scrinium"
@@ -27,7 +28,7 @@
         </Border>
 
         <Grid Grid.Column="1" ColumnDefinitions="*,Auto" Margin="40,0,24,0">
-          <TextBlock Classes="muted" FontSize="13" VerticalAlignment="Center" Text="{Binding Chat.SessionLine}" />
+          <TextBlock Classes="muted" FontSize="13" VerticalAlignment="Center" Text="{Binding Active.Chat.SessionLine}" />
           <Button Grid.Column="1" Classes="secondary" Content="New question" VerticalAlignment="Center"
                   Command="{Binding NewQuestionCommand}" />
         </Grid>
@@ -45,8 +46,43 @@
 
     <views:OllamaBanner Grid.Row="1" Grid.ColumnSpan="3" DataContext="{Binding Banner}" IsVisible="{Binding IsVisible}" />
 
-    <views:ArchiveView Grid.Row="2" Grid.Column="0" DataContext="{Binding Sources}" />
-    <views:ChatView Grid.Row="2" Grid.Column="1" DataContext="{Binding Chat}" />
-    <views:RightPanelView Grid.Row="2" Grid.Column="2" DataContext="{Binding Panel}" />
+    <Border x:Name="ArchiveColumn" Grid.Row="2" Grid.Column="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="20,16,20,4">
+          <TextBlock Classes="label" Text="WORKSPACE" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding !IsNamingWorkspace}">
+            <ComboBox x:Name="WorkspacePicker" ItemsSource="{Binding Workspaces}" SelectedItem="{Binding SelectedWorkspace}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="Workspace">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="ws:Workspace">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Column="1" Classes="secondary icon" ToolTip.Tip="New workspace"
+                    AutomationProperties.Name="New workspace" Command="{Binding StartNamingWorkspaceCommand}">
+              <Path Classes="icon" Data="{StaticResource IconPlus}" />
+            </Button>
+          </Grid>
+          <StackPanel IsVisible="{Binding IsNamingWorkspace}" Spacing="8">
+            <TextBox x:Name="WorkspaceName" PlaceholderText="Workspace name" Text="{Binding NewWorkspaceName}">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding CreateWorkspaceCommand}" />
+                <KeyBinding Gesture="Escape" Command="{Binding CancelNamingWorkspaceCommand}" />
+              </TextBox.KeyBindings>
+            </TextBox>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary" Content="Create" Command="{Binding CreateWorkspaceCommand}" />
+              <Button Classes="ghost" Content="Cancel" Command="{Binding CancelNamingWorkspaceCommand}" />
+            </StackPanel>
+          </StackPanel>
+          <TextBlock Text="{Binding WorkspaceError}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource Danger}"
+                     IsVisible="{Binding WorkspaceError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+        <views:ArchiveView DataContext="{Binding Active.Sources}" />
+      </DockPanel>
+    </Border>
+    <views:ChatView Grid.Row="2" Grid.Column="1" DataContext="{Binding Active.Chat}" />
+    <views:RightPanelView Grid.Row="2" Grid.Column="2" DataContext="{Binding Active.Panel}" />
   </Grid>
 </Window>

@@ -2,6 +2,8 @@
   'use strict';
 
   var HISTORY_LIMIT = 6;
+  var workspace = window.location.pathname.match(/^\/w\/[a-z0-9-]+\//);
+  var API = (workspace ? workspace[0] : '/') + 'api/';
   var log = document.getElementById('log');
   var empty = document.getElementById('empty');
   var form = document.getElementById('form');
@@ -77,7 +79,7 @@
     setBusy(true);
 
     try {
-      var response = await fetch('/api/chat', {
+      var response = await fetch(API + 'chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question, history: history.slice(-HISTORY_LIMIT) })
@@ -200,7 +202,7 @@
     panelBody.textContent = 'Loading…';
 
     try {
-      var response = await fetch('/api/sources/' + citation.documentId + '?' + query.toString());
+      var response = await fetch(API + 'sources/' + citation.documentId + '?' + query.toString());
       if (!response.ok) { throw new Error('The original is not available.'); }
       var preview = await response.json();
       panelBody.textContent = '';

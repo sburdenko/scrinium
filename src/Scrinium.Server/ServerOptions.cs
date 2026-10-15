@@ -23,4 +23,17 @@ public sealed class ServerOptions
     public int MaxQuestionLength { get; init; } = 2000;
 
     public int MaxHistoryItems { get; init; } = 20;
+
+    public WorkspaceOptions[] Workspaces { get; init; } = [];
+}
+
+public sealed class WorkspaceOptions
+{
+    public string Id { get; init; } = "";
+
+    public string? Name { get; init; }
+
+    public string? DocumentsFolder { get; init; }
+
+    public string? ApiKey { get; init; }
 }

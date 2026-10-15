@@ -35,7 +35,11 @@ public sealed class App : Application
 
             var main = _host.Services.GetRequiredService<MainViewModel>();
             desktop.MainWindow = new MainWindow { DataContext = main };
-            desktop.ShutdownRequested += (_, _) => _host.StopAsync().GetAwaiter().GetResult();
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                main.Active?.Scope.StopWorker();
+                _host.StopAsync().GetAwaiter().GetResult();
+            };
             _ = main.InitializeAsync();
         }
 
@@ -74,9 +78,7 @@ public sealed class App : Application
         builder.Services.AddScriniumOllama();
 
         builder.Services.AddSingleton<IFilePicker, AvaloniaFilePicker>();
-        builder.Services.AddSingleton<PanelHost>();
-        builder.Services.AddSingleton<SourcesViewModel>();
-        builder.Services.AddSingleton<ChatViewModel>();
+        builder.Services.AddSingleton<WorkspaceViewModelFactory>();
         builder.Services.AddSingleton<OllamaBannerViewModel>();
         builder.Services.AddSingleton<MainViewModel>();
 
