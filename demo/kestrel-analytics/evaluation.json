@@ -22,8 +22,8 @@
     { "id": "refund-annual", "question": "Can I get a refund if I cancel an annual plan after two months?", "language": "en", "expect": "answer", "contains": ["not"], "cites": "plans-and-pricing.md" },
 
     { "id": "sso-plan-price", "question": "Which plan includes single sign-on and how much does it cost per month?", "language": "en", "expect": "answer", "contains": ["Business", "199"], "cites": "feature-matrix.md|plans-and-pricing.md|changelog.md" },
-    { "id": "audit-log-plans", "question": "Which plans include the audit log?", "language": "en", "expect": "answer", "contains": ["Team", "Business"], "cites": "feature-matrix.md|changelog.md" },
-    { "id": "alerts-starter", "question": "Does the Starter plan include email alerts?", "language": "en", "expect": "answer", "contains": ["Team"], "cites": "feature-matrix.md|changelog.md" },
+    { "id": "audit-log-plans", "question": "Which plans include the audit log?", "language": "en", "expect": "answer", "contains": ["Team", "Business"], "passage": ["audit log"], "cites": "feature-matrix.md|changelog.md" },
+    { "id": "alerts-starter", "question": "Does the Starter plan include email alerts?", "language": "en", "expect": "answer", "contains": ["Team"], "passage": ["email alerts"], "cites": "feature-matrix.md|changelog.md" },
     { "id": "list-plans", "question": "List all plans.", "language": "en", "expect": "answer", "contains": ["Free", "Starter", "Team", "Business"], "cites": "plans-and-pricing.md|feature-matrix.md" },
     { "id": "cheapest-alerts", "question": "What is the cheapest plan with email alerts and what does it cost?", "language": "en", "expect": "answer", "contains": ["Team", "79"], "cites": "feature-matrix.md|plans-and-pricing.md|changelog.md" },
     { "id": "api-write-free", "question": "Can I write data through the API on the Free plan?", "language": "en", "expect": "answer", "contains": ["read only|read-only|cannot|can't|not"], "cites": "api-reference.md|feature-matrix.md" },

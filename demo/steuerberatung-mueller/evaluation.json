@@ -35,7 +35,7 @@
     { "id": "checklist-id", "question": "Welche Dokumente soll ich zum Ersttermin mitbringen?", "language": "de", "expect": "answer", "contains": ["Personalausweis"], "cites": "unterlagen-checkliste.pdf" },
 
     { "id": "ru-saturday", "question": "Работаете ли вы по субботам?", "language": "ru", "expect": "answer", "contains": ["10", "13"], "cites": "oeffnungszeiten-und-kontakt.md" },
-    { "id": "ru-cancel", "question": "Какой срок расторжения договора с вами?", "language": "ru", "expect": "answer", "contains": ["недел"], "cites": "mandatsbedingungen.md" },
+    { "id": "ru-cancel", "question": "Какой срок расторжения договора с вами?", "language": "ru", "expect": "answer", "contains": ["недел"], "passage": ["vier Wochen"], "cites": "mandatsbedingungen.md" },
     { "id": "en-price", "question": "How much does a tax return for employees cost?", "language": "en", "expect": "answer", "contains": ["149"], "cites": "leistungen-und-preise.md" },
     { "id": "en-hours", "question": "What time do you open on Monday?", "language": "en", "expect": "answer", "contains": ["8:30"], "cites": "oeffnungszeiten-und-kontakt.md" },
 
