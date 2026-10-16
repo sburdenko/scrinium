@@ -23,7 +23,7 @@ The screenshots show the desktop app on the [Kestrel Analytics demo documents](d
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
-- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; two fictional demo companies with 85 questions ship with committed reports, including the failures.
+- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; three fictional demo companies with 117 questions ship with committed reports, including the failures, and one of them is a held-out set nothing is tuned on.
 - **Workspaces that cannot see each other.** Each workspace is a folder with its own database, originals and saved sessions, so "Work" never answers from "Personal", and one server can serve several companies.
 - **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
 - **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
@@ -140,10 +140,11 @@ The page is served with a content security policy and renders answers as plain t
 
 ## Quality evaluation
 
-`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships two fictional companies:
+`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships three fictional companies:
 
 - [`demo/steuerberatung-mueller`](demo/steuerberatung-mueller), a German tax office: six documents (five Markdown files and a PDF) and 35 questions in German, English and Russian.
 - [`demo/kestrel-analytics`](demo/kestrel-analytics), an English-language analytics vendor written to break the first set: contradicting and superseded documents, tables, a prompt injection inside a document, German questions about English documents, and 14 follow-up questions that only make sense with the chat history.
+- [`demo/velo-nord`](demo/velo-nord), a bicycle workshop in English and German with 32 questions. It is the **held-out set**: it was written after the rules below were tuned on the first two sets, and nothing is tuned on it. Its numbers are the honest estimate of how the app does on documents it was not shaped for.
 
 ```bash
 dotnet run --project tools/Scrinium.Eval -c Release -- \
@@ -164,26 +165,38 @@ Every question states what a correct answer must contain, which document it must
 | forbidden | the answer does not contain a value the documents mark as outdated or injected |
 | language | the answer is in the language of the question (skipped for very short answers) |
 
-Results, `bge-m3` for embeddings:
+Results with `bge-m3` for embeddings, on 13 October and after the answer-quality work on 16 October:
 
 | Set | Chat model | Cases passed | Right sentence highlighted | Refused when it should | Median answer time |
 |---|---|---|---|---|---|
-| Steuerberatung Müller (35) | `gemma3:12b` | 28 / 35 | 25 / 30 | 3 / 5 | 7.3 s |
-| Steuerberatung Müller (35) | `qwen3-coder:30b` | 29 / 35 | 24 / 30 | 5 / 5 | 2.8 s |
-| Kestrel Analytics (50) | `gemma3:12b` | 39 / 50 | 36 / 44 | 3 / 6 | 15.0 s |
-| Kestrel Analytics (50) | `qwen3-coder:30b` | 42 / 50 | 37 / 44 | 5 / 6 | 5.3 s |
+| Steuerberatung Müller (35) | `gemma3:12b` | 28 → **35** / 35 | 25 → **30** / 30 | 3 → **5** / 5 | 7.3 → 10.0 s |
+| Steuerberatung Müller (35) | `qwen3-coder:30b` | 29 → **34** / 35 | 24 → **29** / 30 | 5 → **5** / 5 | 2.8 → 3.7 s |
+| Kestrel Analytics (50) | `gemma3:12b` | 39 → **47** / 50 | 36 → **42** / 44 | 3 → **5** / 6 | 15.0 → 22.7 s |
+| Kestrel Analytics (50) | `qwen3-coder:30b` | 42 → **49** / 50 | 37 → **43** / 44 | 5 → **6** / 6 | 5.3 → 8.8 s |
+| Velo Nord, held out (32) | `gemma3:12b` | **28** / 32 | **24** / 27 | **4** / 5 | 11.2 s |
+| Velo Nord, held out (32) | `qwen3-coder:30b` | **26** / 32 | **21** / 27 | **5** / 5 | 3.3 s |
 
-The first company passed 35 of 35 until the passage and forbidden-value checks were added; those checks are why the numbers dropped, not a regression. On the harder set, the first run of `gemma3:12b` passed 29 of 50 ([report](demo/kestrel-analytics/reports/2026-10-13-gemma3-12b-first-run.md)). It exposed five defects that are now fixed:
+The first two sets were used to find and fix the defects, so their numbers are an upper bound. The held-out set is lower, and that gap is the point of having it. The same code scored 24 and 26 of 32 with `qwen3-coder:30b` in two runs, so a difference of two cases is within the model's own variation. Across the two held-out runs, three flaws in the highlight rules showed up; they are the next thing to fix, together with a new held-out set:
 
-- a prompt injection inside a document was obeyed;
-- an English question was answered in French;
-- follow-up questions lost their context, because retrieval only saw the last message;
-- "the documents do not include X" was treated as a refusal, although the answer was useful;
-- the highlighted sentence was the wrong one in 45 % of answers, because it was picked by word overlap; it is now refined against the claims of the answer.
+- a year counts for more than a price, because longer numbers weigh more: "59 euros from 1 March 2026" highlights the sentence about 1 March 2026;
+- a digit in the answer's wording, as in "according to fragment 2", can move a citation to a table row that holds a 2;
+- when one citation carries two claims, the first is highlighted even when the question asked about the second.
 
-What still fails is listed in the reports. Of the 32 failing runs, 26 are the highlighted sentence missing the fact (two of them also lack a fact in the answer), and 6 are a question the documents cannot answer that the model answered anyway. No run repeated a value the documents mark as outdated.
+One held-out case was changed after its first run: `rent-week-city` expected only the computed "60", which no document contains, and the dataset check that every expected fact appears in a source rejected it. It now accepts "60" or "four times"; the numbers above are from the run after that change.
 
-The reports in [`demo/steuerberatung-mueller/reports`](demo/steuerberatung-mueller/reports) and [`demo/kestrel-analytics/reports`](demo/kestrel-analytics/reports) list every case and, for failures, the answer that was given and the fragments that were retrieved. A decline starts with a marker the app removes, so a refusal carries no sources and keeps the language of the question.
+Answers got slower: on `qwen3-coder:30b` the median on the Kestrel set grew from 5.3 to 8.8 seconds. Refining the highlight now also reads the neighbouring chunks, which is part of it; the rest is not pinned down yet.
+
+How the numbers moved on the first two sets:
+
+- A decline written after an answer ("… [[NONE]]") is now a decline, and a decline that is in fact grounded in its cited fragment keeps its sources.
+- The prompt tells a stated absence ("not included" answers the question) from a missing mention (which declines).
+- The highlight follows the answer's claim: the full text since the previous citation marker, the figures it states, the question, and the neighbouring chunks. A citation whose fragment lacks the stated figure moves to the fragment that holds it, two sentences the answer both restates are highlighted together, and headings and colon-ended lead-ins are evidence only for a figure they state.
+- German dates such as "31. Juli" no longer split a sentence, and the query rewriter can no longer invent numbers.
+- Three cases name what their highlight must hold, because the answer's words cannot appear in the source: two table rows whose answer is in the column names, and a Russian question about a German document.
+
+Earlier, the first run of `gemma3:12b` on the Kestrel set passed 29 of 50 ([report](demo/kestrel-analytics/reports/2026-10-13-gemma3-12b-first-run.md)) and exposed a prompt injection that was obeyed, an English question answered in French, follow-ups that lost their context, and "not included" treated as a refusal. No run has repeated a value the documents mark as outdated or injected.
+
+The reports in each set's `reports` folder list every case and, for failures, the answer, the highlighted sentence and the fragments that were retrieved.
 
 CI checks that the question set is valid and that every cited document exists; the model run itself is local.
 
@@ -355,6 +368,7 @@ tools/
 demo/
   steuerberatung-mueller/  fictional German tax office: documents, questions, reports
   kestrel-analytics/       fictional analytics vendor, a harder set: conflicts, tables, injection, follow-ups
+  velo-nord/               fictional bicycle workshop, the held-out set nothing is tuned on
 tests/
   Scrinium.Tests/        unit, architecture, composition and server tests
   Scrinium.UiTests/      headless tests of the desktop window

@@ -35,11 +35,10 @@ public sealed class AnswerService(
         var messages = PromptBuilder.Build(question, found.Fragments, history);
         var options = new ChatOptions { ModelId = settings.Current.ChatModel, Temperature = Temperature };
 
-        var pending = new StringBuilder();
-        var answer = new StringBuilder();
-        var decided = false;
-        var declined = false;
-        var declinedText = false;
+        var raw = new StringBuilder();
+        var shown = 0;
+        var reply = Reply.Streaming;
+        var explained = false;
 
         await foreach (var update in chat.GetStreamingResponseAsync(messages, options, ct))
         {
@@ -47,61 +46,123 @@ public sealed class AnswerService(
             if (string.IsNullOrEmpty(text))
                 continue;
 
-            if (decided)
+            raw.Append(text);
+            switch (reply)
             {
-                var delta = declined && !declinedText ? text.TrimStart() : text;
-                if (delta.Length == 0)
-                    continue;
+                case Reply.Streaming:
+                    var all = raw.ToString();
+                    var marker = all.IndexOf(PromptBuilder.DeclineMarker, StringComparison.Ordinal);
+                    if (marker >= 0 && all[..marker].Trim().Length == 0)
+                    {
+                        reply = Reply.DeclinedUpFront;
+                        yield return new AnswerEvent.SourcesFound([]);
+                        var explanation = all[(marker + PromptBuilder.DeclineMarker.Length)..].TrimStart();
+                        if (explanation.Length > 0)
+                        {
+                            explained = true;
+                            yield return new AnswerEvent.TextDelta(explanation);
+                        }
 
-                declinedText |= declined;
-                answer.Append(delta);
-                yield return new AnswerEvent.TextDelta(delta);
-                continue;
+                        break;
+                    }
+
+                    if (marker >= 0)
+                    {
+                        reply = Reply.DeclinedLate;
+                        break;
+                    }
+
+                    var safe = all.Length - HeldBack(all);
+                    if (safe > shown)
+                    {
+                        yield return new AnswerEvent.TextDelta(all[shown..safe]);
+                        shown = safe;
+                    }
+
+                    break;
+
+                case Reply.DeclinedUpFront:
+                    var delta = explained ? text : text.TrimStart();
+                    if (delta.Length > 0)
+                    {
+                        explained = true;
+                        yield return new AnswerEvent.TextDelta(delta);
+                    }
+
+                    break;
             }
+        }
 
-            pending.Append(text);
-            var head = pending.ToString().TrimStart();
-
-            if (head.StartsWith(PromptBuilder.DeclineMarker, StringComparison.Ordinal))
-            {
-                decided = declined = true;
-                yield return new AnswerEvent.SourcesFound([]);
-
-                var explanation = head[PromptBuilder.DeclineMarker.Length..].TrimStart();
-                if (explanation.Length > 0)
+        var fullText = raw.ToString();
+        switch (reply)
+        {
+            case Reply.DeclinedUpFront:
+                if (!explained)
                 {
-                    declinedText = true;
-                    yield return new AnswerEvent.TextDelta(explanation);
+                    yield return new AnswerEvent.TextDelta(PromptBuilder.DeclinedMessage);
+                    yield break;
                 }
 
-                continue;
-            }
+                var afterMarker = fullText[(fullText.IndexOf(PromptBuilder.DeclineMarker, StringComparison.Ordinal) + PromptBuilder.DeclineMarker.Length)..].TrimStart();
+                if (IsGroundedAnswer(afterMarker, searchQuery, found.Fragments))
+                    yield return new AnswerEvent.SourcesRefined(await refiner.RefineAsync(found.Fragments, afterMarker, searchQuery, ct));
 
-            if (PromptBuilder.DeclineMarker.StartsWith(head, StringComparison.Ordinal))
-                continue;
+                yield break;
 
-            decided = true;
-            answer.Append(pending);
-            yield return new AnswerEvent.TextDelta(pending.ToString());
+            case Reply.DeclinedLate:
+                var withoutMarker = CitationMarkers.Strip(fullText.Replace(PromptBuilder.DeclineMarker, " ", StringComparison.Ordinal));
+                yield return new AnswerEvent.Declined(withoutMarker.Length > 0 ? withoutMarker : PromptBuilder.DeclinedMessage);
+                yield break;
         }
 
-        if (!decided && pending.Length > 0)
-        {
-            answer.Append(pending);
-            yield return new AnswerEvent.TextDelta(pending.ToString());
-        }
-        else if (declined && !declinedText)
-        {
-            yield return new AnswerEvent.TextDelta(PromptBuilder.DeclinedMessage);
-        }
+        if (raw.Length > shown)
+            yield return new AnswerEvent.TextDelta(raw.ToString(shown, raw.Length - shown));
 
-        if (declined)
-            yield break;
-
-        var refined = await refiner.RefineAsync(found.Fragments, answer.ToString(), ct);
+        var refined = await refiner.RefineAsync(found.Fragments, fullText, searchQuery, ct);
         var changed = refined.Zip(found.Fragments, (after, fragment) => after.Location != fragment.Citation.Location).Any(x => x);
         if (changed)
             yield return new AnswerEvent.SourcesRefined(refined);
+    }
+
+    private const double GroundedCoverage = 0.5;
+
+    /// <summary>
+    /// Whether a reply that began with the decline marker is in fact an answer: it cites a fragment that holds
+    /// the figures or the wording it states.
+    /// </summary>
+    private static bool IsGroundedAnswer(string text, string question, IReadOnlyList<ContextFragment> fragments)
+    {
+        var cited = CitationMarkers.CitedNumbers(text);
+        if (cited.Count == 0)
+            return false;
+
+        var clean = CitationMarkers.Strip(text);
+        var questionNumbers = NumberEvidence.Numbers(question);
+
+        return fragments
+            .Where(f => cited.Contains(f.Citation.Number))
+            .Any(f => NumberEvidence.Overlap(clean, f.ChunkText, questionNumbers) > 0
+                || WordEvidence.Coverage(clean, f.ChunkText) >= GroundedCoverage);
+    }
+
+    /// <summary>How many trailing characters could still grow into the decline marker and must wait for the next token.</summary>
+    private static int HeldBack(string text)
+    {
+        var marker = PromptBuilder.DeclineMarker;
+        for (var length = Math.Min(marker.Length - 1, text.Length); length > 0; length--)
+        {
+            if (marker.StartsWith(text[^length..], StringComparison.Ordinal))
+                return length;
+        }
+
+        return 0;
+    }
+
+    private enum Reply
+    {
+        Streaming,
+        DeclinedUpFront,
+        DeclinedLate
     }
 
     private static string Explain(RetrievalOutcome outcome) => outcome switch

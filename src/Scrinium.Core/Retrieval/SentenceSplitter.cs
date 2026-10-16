@@ -5,6 +5,10 @@ public static class SentenceSplitter
     private const int MinLength = 20;
     private const int MaxRunWithoutBreak = 160;
 
+    /// <summary>A Markdown heading or a colon-ended lead-in names a section or list; it is evidence only for a figure it states itself.</summary>
+    public static bool IsHeading(string text, PassageSpan span) =>
+        text[span.Start] == '#' || text[span.Start + span.Length - 1] == ':';
+
     public static IReadOnlyList<PassageSpan> Split(string text)
     {
         var raw = new List<PassageSpan>();
@@ -30,7 +34,24 @@ public static class SentenceSplitter
             return LineBreakEndsPassage(text, start, index);
 
         var terminal = c is '.' or '!' or '?' or '…';
-        return terminal && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]));
+        return terminal
+            && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]))
+            && !(c == '.' && IsDayBeforeMonth(text, index))
+            && !InListItemLine(text, index);
+    }
+
+    private static bool InListItemLine(string text, int index)
+    {
+        var lineStart = index == 0 ? 0 : text.LastIndexOf('\n', index - 1) + 1;
+        while (lineStart < index && text[lineStart] is ' ' or '\t')
+            lineStart++;
+        if (!StartsListItem(text, lineStart))
+            return false;
+
+        var next = index + 1;
+        while (next < text.Length && text[next] is ' ' or '\t')
+            next++;
+        return next < text.Length && text[next] is not ('\n' or '\r') && !StartsListItem(text, next);
     }
 
     private static bool IsTableSeparator(string text, int start, int end)
@@ -42,7 +63,8 @@ public static class SentenceSplitter
     private static bool LineBreakEndsPassage(string text, int start, int index)
     {
         var lineStart = index == 0 ? 0 : text.LastIndexOf('\n', index - 1) + 1;
-        if (text.AsSpan(lineStart, index - lineStart).TrimStart().StartsWith("|"))
+        var line = text.AsSpan(lineStart, index - lineStart).TrimStart();
+        if (line.StartsWith("|") || IsHeading(line) || StartsBlankLine(text, index))
             return true;
 
         var last = index - 1;
@@ -57,6 +79,45 @@ public static class SentenceSplitter
             next++;
 
         return StartsListItem(text, next) || (next < text.Length && text[next] == '|') || index - start >= MaxRunWithoutBreak;
+    }
+
+    private static bool IsHeading(ReadOnlySpan<char> line) => line.StartsWith("#");
+
+    private static readonly string[] MonthStems =
+    [
+        "jan", "feb", "mär", "mar", "apr", "mai", "may", "jun", "jul", "aug", "sep", "okt", "oct", "nov", "dez", "dec"
+    ];
+
+    /// <summary>The full stop of a German date such as "31. Juli" or "1. März", which does not end the sentence.</summary>
+    private static bool IsDayBeforeMonth(string text, int dot)
+    {
+        var digits = 0;
+        while (dot - digits - 1 >= 0 && char.IsDigit(text[dot - digits - 1]))
+            digits++;
+
+        var before = dot - digits - 1;
+        if (digits is 0 or > 2 || (before >= 0 && !char.IsWhiteSpace(text[before])))
+            return false;
+
+        var word = dot + 1;
+        while (word < text.Length && text[word] == ' ')
+            word++;
+
+        var end = word;
+        while (end < text.Length && char.IsLetter(text[end]))
+            end++;
+
+        var next = text[word..end];
+        return next.Length >= 3 && MonthStems.Any(stem => next.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool StartsBlankLine(string text, int newline)
+    {
+        var next = newline + 1;
+        while (next < text.Length && text[next] is ' ' or '\t' or '\r')
+            next++;
+
+        return next < text.Length && text[next] == '\n';
     }
 
     private static bool StartsListItem(string text, int index)
@@ -93,7 +154,7 @@ public static class SentenceSplitter
 
         foreach (var span in spans)
         {
-            if (text[span.Start] == '|')
+            if (text[span.Start] is '|' or '#')
             {
                 if (carry is { } held)
                     merged.Add(held);

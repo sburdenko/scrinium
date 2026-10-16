@@ -208,4 +208,19 @@ public sealed class ServerTests
         Assert.Contains("chat.js", html);
         Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
     }
+
+    [Fact]
+    public async Task A_late_decline_reaches_the_client_as_its_own_event()
+    {
+        await using var server = await ServerHarness.StartAsync(
+            answerTokens: ["Louder in September [1]. ", "But nothing on the brakes. ", "[[NONE]]"],
+            seedDocuments: Seed("engine.txt", EngineNote));
+        await server.WaitUntilReadyAsync(1);
+
+        var events = await server.ChatAsync("engine noise");
+
+        var declined = Assert.Single(events, e => e.Type == "declined");
+        Assert.Equal("Louder in September. But nothing on the brakes.", declined.Json.GetString());
+        Assert.DoesNotContain(events, e => e.Type == "delta" && e.Data.Contains("NONE"));
+    }
 }

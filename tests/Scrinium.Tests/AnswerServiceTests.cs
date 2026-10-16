@@ -193,4 +193,70 @@ public sealed class AnswerServiceTests : IDisposable
 
         Assert.Equal("Да", Text(events));
     }
+
+    [Fact]
+    public async Task A_decline_marker_after_an_answer_turns_it_into_a_decline_without_sources()
+    {
+        var events = await AskWithAsync(["Der Business-Tarif kostet 199 Euro [1]. ", "Zum Enterprise-Tarif steht nichts da. ", "[[NONE]]"]);
+
+        var declined = Assert.IsType<AnswerEvent.Declined>(events[^1]);
+        Assert.Equal("Der Business-Tarif kostet 199 Euro. Zum Enterprise-Tarif steht nichts da.", declined.Text);
+        Assert.Empty(events.OfType<AnswerEvent.SourcesRefined>());
+    }
+
+    [Fact]
+    public async Task A_late_decline_marker_is_never_shown_even_when_it_arrives_in_pieces()
+    {
+        var events = await AskWithAsync(["Nothing about that ", "[", "[NO", "NE", "]]", " here."]);
+
+        Assert.DoesNotContain("[[", Text(events));
+        Assert.DoesNotContain("NONE", Text(events));
+        Assert.Equal("Nothing about that here.", Assert.IsType<AnswerEvent.Declined>(events[^1]).Text);
+    }
+
+    [Fact]
+    public async Task Double_brackets_that_are_not_the_marker_are_shown_as_they_are()
+    {
+        var events = await AskWithAsync(["Use ", "[[", "brackets]] ", "here [1]."]);
+
+        Assert.Equal("Use [[brackets]] here [1].", Text(events));
+        Assert.Empty(events.OfType<AnswerEvent.Declined>());
+    }
+
+    [Fact]
+    public async Task A_citation_split_across_tokens_still_streams_whole()
+    {
+        var events = await AskWithAsync(["Мотор шумел ", "[", "1", "]."]);
+
+        Assert.Equal("Мотор шумел [1].", Text(events));
+    }
+
+    [Fact]
+    public async Task A_grounded_answer_that_mistakenly_starts_with_the_decline_marker_keeps_its_sources()
+    {
+        var events = await AskWithAsync([PromptBuilder.DeclineMarker, " Звук мотора стал громче [1]."], "звук");
+
+        var restored = Assert.IsType<AnswerEvent.SourcesRefined>(events[^1]);
+        Assert.NotEmpty(restored.Citations);
+        Assert.Equal("Звук мотора стал громче [1].", Text(events));
+        Assert.Equal(2, events.OfType<AnswerEvent.SourcesFound>().Count());
+    }
+
+    [Theory]
+    [InlineData("Kestrel stores no information about individual visitors [1].")]
+    [InlineData("The contract does not mention a deadline, but the notice period is three months [1].")]
+    [InlineData("Der Vertrag enthält keine Informationen darüber, wohl aber eine Frist von drei Monaten [1].")]
+    public async Task An_answer_that_states_an_absence_in_its_own_words_keeps_its_sources(string reply)
+    {
+        using var app = new TestApp(new FakeChatClient(reply));
+        await app.ImportAndProcessAsync(app.WriteFile("privacy.md",
+            "Kestrel stores no information about individual visitors. The notice period is three months."));
+
+        var events = new List<AnswerEvent>();
+        await foreach (var e in app.Answers.AskAsync("Kestrel stores information about individual visitors notice period", []))
+            events.Add(e);
+
+        Assert.Empty(events.OfType<AnswerEvent.Declined>());
+        Assert.NotEmpty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
+    }
 }

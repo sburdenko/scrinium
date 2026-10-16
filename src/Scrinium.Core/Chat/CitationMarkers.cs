@@ -7,6 +7,9 @@ public static partial class CitationMarkers
     [GeneratedRegex(@"\[(\d+(?:\s*[,;]\s*\d+)*)\]")]
     private static partial Regex MarkerPattern();
 
+    [GeneratedRegex(@"\s+([.,;:!?])")]
+    private static partial Regex SpaceBeforePunctuation();
+
     public static IReadOnlyList<AnswerPart> Split(string text)
     {
         var parts = new List<AnswerPart>();
@@ -29,6 +32,14 @@ public static partial class CitationMarkers
             parts.Add(new AnswerPart.Plain(text[cursor..]));
 
         return parts;
+    }
+
+    /// <summary>The text without its citation markers, with the spaces they leave behind tidied up.</summary>
+    public static string Strip(string text)
+    {
+        var plain = string.Concat(Split(text).OfType<AnswerPart.Plain>().Select(p => p.Text));
+        var spaced = string.Join(' ', plain.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return SpaceBeforePunctuation().Replace(spaced, "$1");
     }
 
     public static IReadOnlySet<int> CitedNumbers(string text) =>

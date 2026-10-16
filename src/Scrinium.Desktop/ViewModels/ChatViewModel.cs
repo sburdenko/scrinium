@@ -116,6 +116,9 @@ public sealed partial class ChatViewModel : ObservableObject
                     case AnswerEvent.SourcesRefined refined:
                         reply.RefineSources(refined.Citations);
                         break;
+                    case AnswerEvent.Declined declined:
+                        reply.Decline(declined.Text);
+                        break;
                 }
 
                 ScrollRequested?.Invoke();

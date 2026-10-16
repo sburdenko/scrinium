@@ -60,6 +60,9 @@ public sealed class DesktopHarness : IDisposable
         while (DateTime.UtcNow < deadline)
         {
             var current = (await library.ListAsync()).Single(d => d.Id == document.Id);
+            if (current.State is IndexState.Failed failed && App.Embedder.FailWith is null)
+                throw new InvalidOperationException($"{name} failed to index unexpectedly: {failed.Error}");
+
             if (current.State is IndexState.Ready or IndexState.Failed)
             {
                 await Sources.InitializeAsync();
@@ -76,6 +79,10 @@ public sealed class DesktopHarness : IDisposable
     {
         Chat.Input = question;
         await Chat.SendCommand.ExecuteAsync(null);
+
+        var answer = Chat.Exchanges[^1].Answer;
+        if (answer.IsFailed && App.Embedder.FailWith is null)
+            throw new InvalidOperationException($"Answering \"{question}\" failed unexpectedly: {answer.Error}");
     }
 
     public void Dispose()

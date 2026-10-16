@@ -55,7 +55,15 @@ public static class ReportWriter
                 report.AppendLine($"### {result.Case.Id}").AppendLine();
                 report.AppendLine($"Question: {result.Case.Question}").AppendLine();
                 report.AppendLine($"Answer: {Shorten(result.Observation.Text)}").AppendLine();
-                report.AppendLine("Retrieved:").AppendLine();
+                if (result.Observation.CitedPassages is { Count: > 0 } highlighted)
+                {
+                    report.AppendLine("Highlighted:").AppendLine();
+                    foreach (var passage in highlighted)
+                        report.AppendLine($"- {passage.ReplaceLineEndings(" ")}");
+                    report.AppendLine();
+                }
+
+                report.AppendLine("Retrieved (first pass):").AppendLine();
                 foreach (var line in result.Observation.RetrievedLines ?? result.Observation.RetrievedTitles)
                     report.AppendLine($"- {line}");
                 report.AppendLine();

@@ -101,6 +101,13 @@ public sealed partial class AnswerViewModel : ObservableObject
         NotifyCitationsChanged();
     }
 
+    public void Decline(string explanation)
+    {
+        Text = explanation;
+        Citations.Clear();
+        NotifyCitationsChanged();
+    }
+
     public void Append(string delta)
     {
         Text += delta;

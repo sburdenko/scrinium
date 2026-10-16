@@ -8,6 +8,8 @@ public sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embeddi
 
     public int Calls { get; private set; }
 
+    public int Texts { get; private set; }
+
     public Exception? FailWith { get; set; }
 
     public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
@@ -16,10 +18,12 @@ public sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embeddi
         CancellationToken cancellationToken = default)
     {
         Calls++;
+        var list = values.ToList();
+        Texts += list.Count;
         if (FailWith is not null)
             throw FailWith;
 
-        var result = new GeneratedEmbeddings<Embedding<float>>(values.Select(v => new Embedding<float>(Embed(v))).ToList());
+        var result = new GeneratedEmbeddings<Embedding<float>>(list.Select(v => new Embedding<float>(Embed(v))).ToList());
         return Task.FromResult(result);
     }
 

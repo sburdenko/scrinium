@@ -490,4 +490,21 @@ public class EvaluationReportTests
 
         Assert.Contains("[1] x.md: the preview of the first fragment", markdown);
     }
+
+    [Fact]
+    public void A_case_can_name_what_the_highlight_must_hold_when_the_answer_words_are_not_in_the_source()
+    {
+        var cases = CaseLoader.Parse("""
+            { "cases": [
+              { "id": "a", "question": "Как расторгнуть?", "expect": "answer", "contains": ["недел"], "passage": ["vier Wochen"] }
+            ] }
+            """);
+        var observation = new AnswerObservation("За четыре недели [1].", ["vertrag.md"], ["vertrag.md"], TimeSpan.FromSeconds(1),
+            ["Beide Seiten können mit einer Frist von vier Wochen kündigen."]);
+
+        var checks = AnswerScorer.Score(cases[0], observation);
+
+        Assert.Equal(["vier Wochen"], ((Expectation.Answers)cases[0].Expect).Passage);
+        Assert.Contains(checks.OfType<CheckResult.Passed>(), p => p.Name == "passage");
+    }
 }

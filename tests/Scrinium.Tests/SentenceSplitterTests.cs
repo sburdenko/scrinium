@@ -116,4 +116,62 @@ public class SentenceSplitterTests
         Assert.All(spans, s => Assert.Equal(text.Substring(s.Start, s.Length).Trim(), text.Substring(s.Start, s.Length)));
         Assert.Equal("Second sentence is also long enough.", text.Substring(spans[1].Start, spans[1].Length));
     }
+
+    [Fact]
+    public void A_markdown_heading_is_a_passage_of_its_own()
+    {
+        var text = "## Version 3.4, released on 12 September 2025\n\nAdded single sign-on with SAML 2.0 for the Business plan.";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(["## Version 3.4, released on 12 September 2025", "Added single sign-on with SAML 2.0 for the Business plan."], sentences);
+        Assert.True(SentenceSplitter.IsHeading(text, SentenceSplitter.Split(text)[0]));
+        Assert.False(SentenceSplitter.IsHeading(text, SentenceSplitter.Split(text)[1]));
+    }
+
+    [Fact]
+    public void A_blank_line_ends_a_passage_even_without_punctuation()
+    {
+        var text = "Opening hours on weekdays from nine to six\n\nSaturdays by appointment only for existing clients";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(2, sentences.Count);
+        Assert.StartsWith("Saturdays", sentences[1]);
+    }
+
+    [Theory]
+    [InlineData("Die Erklärung ist bis zum 31. Juli des Folgejahres abzugeben. Danach droht ein Zuschlag.")]
+    [InlineData("Die Frist endet am 1. März 2026. Danach droht ein Zuschlag.")]
+    [InlineData("The new plan starts on 3. Oct 2026 for every customer. After that the old plan ends.")]
+    public void A_day_before_a_month_name_does_not_end_the_sentence(string text)
+    {
+        var sentences = Texts(text);
+
+        Assert.Equal(2, sentences.Count);
+        Assert.StartsWith("Danach", sentences[1].Replace("After", "Danach"));
+    }
+
+    [Fact]
+    public void A_numbered_list_item_on_one_line_stays_whole()
+    {
+        const string text = "4. Paste the snippet into your website.\n5. Verify the installation. The site status turns green within 5 minutes.";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(
+            ["4. Paste the snippet into your website.", "5. Verify the installation. The site status turns green within 5 minutes."],
+            sentences);
+    }
+
+    [Fact]
+    public void A_line_ending_with_a_colon_counts_as_a_heading()
+    {
+        const string text = "Bitte bringen Sie zum Ersttermin folgende Unterlagen mit:\n1. Personalausweis oder Reisepass";
+        var spans = SentenceSplitter.Split(text);
+
+        Assert.Equal(2, spans.Count);
+        Assert.True(SentenceSplitter.IsHeading(text, spans[0]));
+        Assert.False(SentenceSplitter.IsHeading(text, spans[1]));
+    }
 }

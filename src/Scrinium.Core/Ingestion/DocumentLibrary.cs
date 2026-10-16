@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Storage;
@@ -11,6 +12,7 @@ public sealed class DocumentLibrary(
     TimeProvider clock)
 {
     private readonly Channel<Guid> _queue = Channel.CreateUnbounded<Guid>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly ConcurrentDictionary<Guid, byte> _queued = new();
 
     public event Action<Guid>? DocumentChanged;
 
@@ -85,6 +87,7 @@ public sealed class DocumentLibrary(
 
         await foreach (var id in _queue.Reader.ReadAllAsync(ct))
         {
+            _queued.TryRemove(id, out _);
             DocumentChanged?.Invoke(id);
             try
             {
@@ -103,6 +106,10 @@ public sealed class DocumentLibrary(
 
     private void Enqueue(Guid documentId)
     {
+        // Import and the startup scan can both see a new document; indexing it twice would hide it from search meanwhile.
+        if (!_queued.TryAdd(documentId, 0))
+            return;
+
         _queue.Writer.TryWrite(documentId);
         DocumentChanged?.Invoke(documentId);
     }

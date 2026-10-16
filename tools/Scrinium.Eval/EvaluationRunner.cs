@@ -43,6 +43,10 @@ public sealed class EvaluationRunner(DocumentLibrary library, IngestionPipeline 
                 case AnswerEvent.SourcesRefined refinedSources:
                     citations = refinedSources.Citations;
                     break;
+                case AnswerEvent.Declined declined:
+                    text.Clear().Append(declined.Text);
+                    citations = [];
+                    break;
             }
         }
 

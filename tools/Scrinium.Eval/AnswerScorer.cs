@@ -52,7 +52,8 @@ public static class AnswerScorer
     private static CheckResult Passage(Expectation.Answers answers, IReadOnlyList<string> passages)
     {
         var text = Normalize(string.Join(" ", passages));
-        return answers.Contains.Any(fact => Present(text, fact))
+        var expected = answers.Passage ?? answers.Contains;
+        return expected.Any(fact => Present(text, fact))
             ? new CheckResult.Passed("passage")
             : new CheckResult.Failed("passage", "the highlighted sentence holds none of the expected facts");
     }
@@ -92,5 +93,6 @@ public static class AnswerScorer
             : new CheckResult.Failed("language", $"expected {expected}, detected {detected}");
     }
 
-    private static string Normalize(string text) => text.Replace(' ', ' ');
+    private static string Normalize(string text) =>
+        text.Replace('\u00A0', ' ').Replace('\u202F', ' ').Replace('\u2009', ' ');
 }
