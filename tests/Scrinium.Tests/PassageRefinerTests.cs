@@ -234,4 +234,63 @@ public sealed class PassageRefinerTests : IDisposable
             Assert.Single(refined).Preview);
     }
 
+
+    [Fact]
+    public async Task Sentences_that_share_no_word_or_number_with_the_claim_are_not_sent_to_the_model()
+    {
+        var unrelated = string.Join(" ", Enumerable.Range(1, 10).Select(i => $"Lorem ipsum dolor sit amet number {i * 1000} consectetur."));
+        var fragment = Fragment(unrelated + " Walruses sleep on floating ice.");
+        var before = _app.Embedder.Texts;
+
+        var refined = await Refiner.RefineAsync([fragment], "Walruses sleep on ice [1].", "Where do walruses sleep?");
+
+        Assert.Equal("Walruses sleep on floating ice.", Assert.Single(refined).Preview);
+        Assert.True(_app.Embedder.Texts - before <= 4, $"embedded {_app.Embedder.Texts - before} texts");
+    }
+
+    [Fact]
+    public async Task When_no_sentence_shares_a_word_with_the_claim_every_sentence_is_compared()
+    {
+        var fragment = Fragment("Beide Seiten können mit einer Frist von vier Wochen kündigen. Die Kanzlei liegt in Bonn.");
+
+        var refined = await Refiner.RefineAsync([fragment], "Расторгнуть можно за четыре недели [1].", "Какой срок расторжения?");
+
+        Assert.Single(refined);
+        Assert.NotEqual("initial", refined[0].Preview);
+    }
+
+    private sealed class MeaningEmbedder(Dictionary<string, float[]> meanings) : Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>
+    {
+        public Task<Microsoft.Extensions.AI.GeneratedEmbeddings<Microsoft.Extensions.AI.Embedding<float>>> GenerateAsync(
+            IEnumerable<string> values, Microsoft.Extensions.AI.EmbeddingGenerationOptions? options = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Microsoft.Extensions.AI.GeneratedEmbeddings<Microsoft.Extensions.AI.Embedding<float>>(
+                values.Select(v => new Microsoft.Extensions.AI.Embedding<float>(meanings.GetValueOrDefault(v, [0f, 0f, 1f]))).ToList()));
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task The_first_guess_stays_a_candidate_even_when_it_shares_no_word_with_the_answer()
+    {
+        const string echo = "Unterlagen bitte vollständig einreichen.";
+        const string answer = "Nutzen Sie das Mandantenportal oder eine verschlüsselte E-Mail.";
+        const string claim = "Ja, Sie können Unterlagen digital einreichen";
+        var embedder = new MeaningEmbedder(new()
+        {
+            [claim] = [1f, 0f, 0f],
+            [answer] = [1f, 0f, 0f],
+            [echo] = [0f, 1f, 0f]
+        });
+        var chunk = echo + " " + answer;
+        var id = Guid.NewGuid();
+        var firstGuess = new Citation(1, id, "faq.md", null, new DateOnly(2026, 1, 1), answer,
+            new SourceLocation(id, null, 100 + echo.Length + 1, answer.Length));
+        var fragment = new ContextFragment(firstGuess, chunk, chunk, 100);
+
+        var refined = await new PassageRefiner(embedder, _app.Settings).RefineAsync([fragment], claim + " [1].", "");
+
+        Assert.Contains(answer, Assert.Single(refined).Preview);
+    }
 }
