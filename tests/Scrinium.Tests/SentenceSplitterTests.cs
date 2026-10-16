@@ -151,4 +151,27 @@ public class SentenceSplitterTests
         Assert.Equal(2, sentences.Count);
         Assert.StartsWith("Danach", sentences[1].Replace("After", "Danach"));
     }
+
+    [Fact]
+    public void A_numbered_list_item_on_one_line_stays_whole()
+    {
+        const string text = "4. Paste the snippet into your website.\n5. Verify the installation. The site status turns green within 5 minutes.";
+
+        var sentences = Texts(text);
+
+        Assert.Equal(
+            ["4. Paste the snippet into your website.", "5. Verify the installation. The site status turns green within 5 minutes."],
+            sentences);
+    }
+
+    [Fact]
+    public void A_line_ending_with_a_colon_counts_as_a_heading()
+    {
+        const string text = "Bitte bringen Sie zum Ersttermin folgende Unterlagen mit:\n1. Personalausweis oder Reisepass";
+        var spans = SentenceSplitter.Split(text);
+
+        Assert.Equal(2, spans.Count);
+        Assert.True(SentenceSplitter.IsHeading(text, spans[0]));
+        Assert.False(SentenceSplitter.IsHeading(text, spans[1]));
+    }
 }

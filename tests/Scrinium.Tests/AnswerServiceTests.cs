@@ -230,4 +230,22 @@ public sealed class AnswerServiceTests : IDisposable
 
         Assert.Equal("Мотор шумел [1].", Text(events));
     }
+
+    [Fact]
+    public async Task A_grounded_answer_that_mistakenly_starts_with_the_decline_marker_keeps_its_sources()
+    {
+        var events = await AskWithAsync([PromptBuilder.DeclineMarker, " Звук мотора стал громче [1]."], "звук");
+
+        Assert.NotEmpty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
+        Assert.Equal("Звук мотора стал громче [1].", Text(events));
+    }
+
+    [Fact]
+    public async Task A_reply_that_says_the_fragments_do_not_mention_the_topic_is_declined_even_without_the_marker()
+    {
+        var events = await AskWithAsync(["Der Enterprise-Tarif ist in den bereitgestellten Fragmenten nicht explizit genannt [1]."]);
+
+        var declined = Assert.IsType<AnswerEvent.Declined>(events[^1]);
+        Assert.DoesNotContain("[1]", declined.Text);
+    }
 }

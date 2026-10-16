@@ -28,10 +28,21 @@ public sealed class NumberEvidenceTests
     [InlineData("1,200", "1200")]
     [InlineData("99,95", "99.95")]
     [InlineData("6 000", "6000")]
+    [InlineData("6\u202F000", "6,000")]
     public void Separators_do_not_change_a_number(string written, string other) =>
         Assert.Equal(1, NumberEvidence.Overlap($"It is {written}.", $"It is {other}.", Nothing));
 
     [Fact]
     public void A_claim_without_numbers_has_no_number_evidence() =>
         Assert.Equal(0, NumberEvidence.Overlap("It is open on Sundays.", "Open 9 to 5.", Nothing));
+
+    [Fact]
+    public void Words_borrowed_from_a_sentence_are_counted_while_question_words_are_left_out()
+    {
+        var asked = NumberEvidence.Words("What should ACME Retail do first in the migration?");
+        const string claim = "ACME Retail should first export the historical data from the old tools as CSV files.";
+
+        Assert.Equal(1, NumberEvidence.WordOverlap(claim, "First, export the historical data from the old tools as CSV files.", asked));
+        Assert.True(NumberEvidence.WordOverlap(claim, "Note: migration project for ACME Retail", asked) < 0.2);
+    }
 }

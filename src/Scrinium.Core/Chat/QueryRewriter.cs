@@ -11,6 +11,7 @@ public sealed class QueryRewriter(IChatClient chat, ISettingsProvider settings)
     private const string Instruction = """
         Rewrite the user's last message as one standalone search query that can be understood without the conversation.
         Use the earlier messages only to fill in what the last message leaves out, such as the subject it refers to.
+        Do not answer the question and do not guess any numbers.
         Keep the language of the last message. Reply with the query only, with no explanation and no quotes.
         """;
 
@@ -27,6 +28,13 @@ public sealed class QueryRewriter(IChatClient chat, ISettingsProvider settings)
         var response = await chat.GetResponseAsync(messages, options, ct);
 
         var query = response.Text.Trim().Trim('"', '\'', '“', '”').Trim();
-        return query.Length is > 0 and <= LongestQuery ? query : question;
+        if (query.Length is <= 0 or > LongestQuery)
+            return question;
+
+        var mentionedNumbers = Retrieval.NumberEvidence.Numbers(question);
+        foreach (var turn in history)
+            mentionedNumbers.UnionWith(Retrieval.NumberEvidence.Numbers(turn.Text));
+
+        return Retrieval.NumberEvidence.StripUnmentionedNumbers(query, mentionedNumbers);
     }
 }
