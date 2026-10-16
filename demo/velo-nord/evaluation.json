@@ -22,7 +22,7 @@
     { "id": "warranty-chain", "question": "Is a worn chain covered by the warranty?", "language": "en", "expect": "answer", "contains": ["not|no"], "passage": ["chain"], "cites": "warranty.md" },
 
     { "id": "rent-ebike-day", "question": "How much is an e-bike per day?", "language": "en", "expect": "answer", "contains": ["39"], "cites": "rental-terms.md" },
-    { "id": "rent-week-city", "question": "How much does a city bike cost for a week?", "language": "en", "expect": "answer", "contains": ["60"], "cites": "rental-terms.md" },
+    { "id": "rent-week-city", "question": "How much does a city bike cost for a week?", "language": "en", "expect": "answer", "contains": ["60|four times"], "cites": "rental-terms.md" },
     { "id": "rent-deposit-de", "question": "Wie hoch ist die Kaution für ein E-Bike?", "language": "de", "expect": "answer", "contains": ["500"], "cites": "rental-terms.md" },
     { "id": "rent-late", "question": "What happens if I bring the rental bike back late?", "language": "en", "expect": "answer", "contains": ["10"], "cites": "rental-terms.md" },
 

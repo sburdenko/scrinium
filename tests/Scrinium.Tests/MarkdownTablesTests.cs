@@ -70,7 +70,23 @@ public class MarkdownTablesTests
 
         var fragment = Assert.Single(Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments);
         Assert.Contains("Email alerts: Free = not included; Team = included.", fragment.PromptText);
-        var originalAtLocation = text.Substring(fragment.Citation.Location.Offset, fragment.Citation.Location.Length);
+        var extracted = text.ReplaceLineEndings("\n");
+        var originalAtLocation = extracted.Substring(fragment.Citation.Location.Offset, fragment.Citation.Location.Length);
         Assert.Equal(fragment.Citation.Preview, originalAtLocation);
+    }
+
+    [Fact]
+    public async Task A_document_with_windows_line_endings_shows_the_cited_row_in_the_original()
+    {
+        using var app = new TestApp(retrieval: new RetrievalOptions(MinScore: 0.0, ScoreMargin: 1.0));
+        const string text = "# Features\r\n\r\n| Feature | Free | Team |\r\n|---|---|---|\r\n| Email alerts | not included | included |\r\n";
+        await app.ImportAndProcessAsync(app.WriteFile("features.md", text));
+
+        var outcome = await app.Retriever.RetrieveAsync("features email alerts team");
+        var citation = Assert.Single(Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments).Citation;
+        var preview = await app.Preview.LoadAsync(citation.Location);
+
+        Assert.NotNull(preview);
+        Assert.Equal(citation.Preview, preview.Highlight);
     }
 }

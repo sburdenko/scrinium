@@ -173,16 +173,16 @@ Results with `bge-m3` for embeddings, on 13 October and after the answer-quality
 | Steuerberatung Müller (35) | `qwen3-coder:30b` | 29 → **34** / 35 | 24 → **29** / 30 | 5 → **5** / 5 | 2.8 → 3.7 s |
 | Kestrel Analytics (50) | `gemma3:12b` | 39 → **47** / 50 | 36 → **42** / 44 | 3 → **5** / 6 | 15.0 → 22.7 s |
 | Kestrel Analytics (50) | `qwen3-coder:30b` | 42 → **49** / 50 | 37 → **43** / 44 | 5 → **6** / 6 | 5.3 → 8.8 s |
-| Velo Nord, held out (32) | `gemma3:12b` | **27** / 32 | **23** / 27 | **4** / 5 | 12.2 s |
-| Velo Nord, held out (32) | `qwen3-coder:30b` | **24** / 32 | **19** / 27 | **5** / 5 | 2.7 s |
+| Velo Nord, held out (32) | `gemma3:12b` | **28** / 32 | **24** / 27 | **4** / 5 | 11.2 s |
+| Velo Nord, held out (32) | `qwen3-coder:30b` | **26** / 32 | **21** / 27 | **5** / 5 | 3.3 s |
 
-The first two sets were used to find and fix the defects, so their numbers are an upper bound. The held-out set is lower, and that gap is the point of having it. Three of the eight cases `qwen3-coder:30b` failed on it trace back to the highlight rules themselves, and they are the next thing to fix, together with a new held-out set:
+The first two sets were used to find and fix the defects, so their numbers are an upper bound. The held-out set is lower, and that gap is the point of having it. The same code scored 24 and 26 of 32 with `qwen3-coder:30b` in two runs, so a difference of two cases is within the model's own variation. Across the two held-out runs, three flaws in the highlight rules showed up; they are the next thing to fix, together with a new held-out set:
 
 - a year counts for more than a price, because longer numbers weigh more: "59 euros from 1 March 2026" highlights the sentence about 1 March 2026;
 - a digit in the answer's wording, as in "according to fragment 2", can move a citation to a table row that holds a 2;
 - when one citation carries two claims, the first is highlighted even when the question asked about the second.
 
-One held-out case expects a computed number (a week at four times the daily price) that no sentence contains, so its highlight check cannot pass; it stays as written.
+One held-out case was changed after its first run: `rent-week-city` expected only the computed "60", which no document contains, and the dataset check that every expected fact appears in a source rejected it. It now accepts "60" or "four times"; the numbers above are from the run after that change.
 
 Answers got slower: on `qwen3-coder:30b` the median on the Kestrel set grew from 5.3 to 8.8 seconds. Refining the highlight now also reads the neighbouring chunks, which is part of it; the rest is not pinned down yet.
 
