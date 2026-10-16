@@ -39,7 +39,8 @@ public sealed class PassageRefiner(
             {
                 var claim = PrimaryClaim(claims[f.Citation.Number], questionNumbers);
                 var (target, spans) = ResolveTarget(f, claim, fragments, questionNumbers);
-                return (Number: f.Citation.Number, Cited: f, Target: target, Spans: spans, Claim: claim);
+                var candidates = Candidates(target, spans, claim, questionNumbers);
+                return (Number: f.Citation.Number, Cited: f, Target: target, Spans: spans, Candidates: candidates, Claim: claim);
             })
             .Where(w => w.Spans.Count > 1 || w.Target != w.Cited)
             .ToList();
@@ -49,7 +50,7 @@ public sealed class PassageRefiner(
             return unchanged;
 
         var texts = work
-            .SelectMany(w => w.Spans.Select(span => Slice(w.Target, span)).Prepend(w.Claim))
+            .SelectMany(w => w.Candidates.Select(span => Slice(w.Target, span)).Prepend(w.Claim))
             .Prepend(asked.Length > 0 ? asked : " ")
             .ToList();
 
@@ -68,12 +69,12 @@ public sealed class PassageRefiner(
         var refined = new Dictionary<int, Citation>();
         var questionVector = asked.Length > 0 ? VectorMath.Normalize(embeddings[0].Vector.Span) : null;
         var next = 1;
-        foreach (var (number, _, target, spans, claim) in work)
+        foreach (var (number, _, target, spans, candidates, claim) in work)
         {
             var claimVector = VectorMath.Normalize(embeddings[next++].Vector.Span);
-            var scored = new List<(PassageSpan Span, double Numbers, double Likeness)>(spans.Count);
+            var scored = new List<(PassageSpan Span, double Numbers, double Likeness)>(candidates.Count);
 
-            foreach (var span in spans)
+            foreach (var span in candidates)
             {
                 var sentence = Slice(target, span);
                 var vector = VectorMath.Normalize(embeddings[next++].Vector.Span);
@@ -97,6 +98,36 @@ public sealed class PassageRefiner(
         }
 
         return fragments.Select(f => refined.GetValueOrDefault(f.Citation.Number) ?? f.Citation).ToList();
+    }
+
+    /// <summary>
+    /// The sentences worth an embedding: those that may be evidence at all (a heading only when it states one of
+    /// the claim's figures) and share a number or a content word with the claim. When none shares anything, as with
+    /// a Russian answer about a German document, every sentence that may be evidence is compared. The first guess,
+    /// chosen by meaning from the question, always stays in.
+    /// </summary>
+    private static IReadOnlyList<PassageSpan> Candidates(
+        ContextFragment target,
+        IReadOnlyList<PassageSpan> spans,
+        string claim,
+        IReadOnlySet<string> questionNumbers)
+    {
+        var eligible = spans
+            .Where(span => !SentenceSplitter.IsHeading(target.ChunkText, span)
+                || NumberEvidence.Overlap(claim, Slice(target, span), questionNumbers) > 0)
+            .ToList();
+        var related = eligible
+            .Where(span =>
+            {
+                var sentence = Slice(target, span);
+                return NumberEvidence.Overlap(claim, sentence, questionNumbers) > 0 || WordEvidence.Likeness(claim, sentence) > 0;
+            })
+            .ToList();
+        if (related.Count == 0)
+            return eligible;
+
+        var firstGuess = target.Citation.Location.Offset - target.ChunkOffset;
+        return eligible.Where(span => span.Start == firstGuess || related.Contains(span)).ToList();
     }
 
     private static string PrimaryClaim(IReadOnlyList<string> claims, IReadOnlySet<string> questionNumbers) =>
