@@ -66,4 +66,28 @@ public sealed class IngestionWorkerTests : IDisposable
 
         public Task DeleteAsync(Guid documentId, CancellationToken ct = default) => inner.DeleteAsync(documentId, ct);
     }
+
+    [Fact]
+    public async Task A_document_queued_by_import_and_by_the_startup_scan_is_indexed_once()
+    {
+        var paths = new DataPaths(Path.Combine(_temp.Path, "data"));
+        var store = new SqliteStore(paths.DatabasePath);
+        var chunker = new Scrinium.Core.Chunking.TextChunker(new Scrinium.Core.Chunking.ChunkingOptions(MaxTokens: 60, OverlapTokens: 8));
+        var settings = new Scrinium.Core.Settings.SettingsService(Path.Combine(_temp.Path, "settings.json"));
+        var embedder = new FakeEmbeddingGenerator();
+        var pipeline = new IngestionPipeline(store, [new Scrinium.Extraction.TextFileExtractor()], chunker, embedder, settings, paths);
+        var library = new DocumentLibrary(store, pipeline, paths, TimeProvider.System);
+
+        var document = await library.ImportAsync(_temp.File("note.txt", "Engine noise got louder in September."));
+        using var stop = new CancellationTokenSource();
+        var worker = Task.Run(() => library.RunWorkerAsync(stop.Token));
+
+        for (var attempt = 0; attempt < 300 && (await library.ListAsync()).Single(d => d.Id == document.Id).State is not IndexState.Ready; attempt++)
+            await Task.Delay(10);
+        await Task.Delay(200);
+
+        await stop.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => worker);
+        Assert.Equal(1, embedder.Calls);
+    }
 }
