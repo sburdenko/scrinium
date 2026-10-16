@@ -124,6 +124,8 @@ public sealed class AnswerService(
             yield return new AnswerEvent.SourcesRefined(refined);
     }
 
+    private const double GroundedCoverage = 0.5;
+
     /// <summary>
     /// Whether a reply that began with the decline marker is in fact an answer: it cites a fragment that holds
     /// the figures or the wording it states.
@@ -136,12 +138,11 @@ public sealed class AnswerService(
 
         var clean = CitationMarkers.Strip(text);
         var questionNumbers = NumberEvidence.Numbers(question);
-        var questionWords = NumberEvidence.Words(question);
 
         return fragments
             .Where(f => cited.Contains(f.Citation.Number))
             .Any(f => NumberEvidence.Overlap(clean, f.ChunkText, questionNumbers) > 0
-                || NumberEvidence.WordOverlap(clean, f.ChunkText, questionWords) >= 0.4);
+                || WordEvidence.Coverage(clean, f.ChunkText) >= GroundedCoverage);
     }
 
     /// <summary>How many trailing characters could still grow into the decline marker and must wait for the next token.</summary>
