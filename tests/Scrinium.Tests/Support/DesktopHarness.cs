@@ -79,6 +79,10 @@ public sealed class DesktopHarness : IDisposable
     {
         Chat.Input = question;
         await Chat.SendCommand.ExecuteAsync(null);
+
+        var answer = Chat.Exchanges[^1].Answer;
+        if (answer.IsFailed && App.Embedder.FailWith is null)
+            throw new InvalidOperationException($"Answering \"{question}\" failed unexpectedly: {answer.Error}");
     }
 
     public void Dispose()
