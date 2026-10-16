@@ -123,4 +123,13 @@ public class PromptBuilderTests
         Assert.StartsWith("Wann haben Sie geöffnet?", last);
         Assert.Contains("Reply in", last);
     }
+
+    [Fact]
+    public void The_prompt_carries_no_example_from_the_evaluation_sets()
+    {
+        var prompt = SystemPrompt("question", Fragment(1)).ToLowerInvariant();
+
+        foreach (var word in new[] { "sso", "kestrel", "plans?", "steuer\\w*", "müller" })
+            Assert.DoesNotMatch($@"\b{word}\b", prompt);
+    }
 }

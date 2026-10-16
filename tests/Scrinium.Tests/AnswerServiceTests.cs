@@ -236,16 +236,27 @@ public sealed class AnswerServiceTests : IDisposable
     {
         var events = await AskWithAsync([PromptBuilder.DeclineMarker, " Звук мотора стал громче [1]."], "звук");
 
-        Assert.NotEmpty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
+        var restored = Assert.IsType<AnswerEvent.SourcesRefined>(events[^1]);
+        Assert.NotEmpty(restored.Citations);
         Assert.Equal("Звук мотора стал громче [1].", Text(events));
+        Assert.Equal(2, events.OfType<AnswerEvent.SourcesFound>().Count());
     }
 
-    [Fact]
-    public async Task A_reply_that_says_the_fragments_do_not_mention_the_topic_is_declined_even_without_the_marker()
+    [Theory]
+    [InlineData("Kestrel stores no information about individual visitors [1].")]
+    [InlineData("The contract does not mention a deadline, but the notice period is three months [1].")]
+    [InlineData("Der Vertrag enthält keine Informationen darüber, wohl aber eine Frist von drei Monaten [1].")]
+    public async Task An_answer_that_states_an_absence_in_its_own_words_keeps_its_sources(string reply)
     {
-        var events = await AskWithAsync(["Der Enterprise-Tarif ist in den bereitgestellten Fragmenten nicht explizit genannt [1]."]);
+        using var app = new TestApp(new FakeChatClient(reply));
+        await app.ImportAndProcessAsync(app.WriteFile("privacy.md",
+            "Kestrel stores no information about individual visitors. The notice period is three months."));
 
-        var declined = Assert.IsType<AnswerEvent.Declined>(events[^1]);
-        Assert.DoesNotContain("[1]", declined.Text);
+        var events = new List<AnswerEvent>();
+        await foreach (var e in app.Answers.AskAsync("Kestrel stores information about individual visitors notice period", []))
+            events.Add(e);
+
+        Assert.Empty(events.OfType<AnswerEvent.Declined>());
+        Assert.NotEmpty(events.OfType<AnswerEvent.SourcesFound>().Last().Citations);
     }
 }
