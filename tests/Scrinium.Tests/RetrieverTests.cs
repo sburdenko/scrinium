@@ -129,4 +129,39 @@ public sealed class RetrieverTests : IDisposable
 
         Assert.Equal(text, Assert.Single(found.Fragments).PromptText);
     }
+
+    private static string LongNote()
+    {
+        var sentences = Enumerable.Range(1, 40).Select(i => $"Sentence number {i} talks about topic {i} in some detail here.");
+        return string.Join(" ", sentences) + " The walrus fact is that walruses sleep on ice floes.";
+    }
+
+    [Fact]
+    public async Task The_window_around_a_hit_reaches_into_its_neighbours()
+    {
+        var app = NewApp();
+        var text = LongNote();
+        await app.ImportAndProcessAsync(app.WriteFile("note.txt", text));
+
+        var outcome = await app.Retriever.RetrieveAsync("walrus walruses sleep ice floes");
+
+        var fragment = Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments[0];
+        Assert.Contains("The walrus fact is that walruses sleep on ice floes.", fragment.ChunkText);
+        Assert.Contains("Sentence number", fragment.ChunkText);
+    }
+
+    [Fact]
+    public async Task Every_position_in_the_window_maps_back_to_the_same_text_in_the_document()
+    {
+        var app = NewApp();
+        var text = LongNote();
+        await app.ImportAndProcessAsync(app.WriteFile("note.txt", text));
+
+        var outcome = await app.Retriever.RetrieveAsync("walrus walruses sleep ice floes");
+
+        var fragment = Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments[0];
+        Assert.Equal(text.Substring(fragment.ChunkOffset, fragment.ChunkText.Length), fragment.ChunkText);
+        var cited = fragment.Citation.Location;
+        Assert.Equal(fragment.Citation.Preview, text.Substring(cited.Offset, cited.Length));
+    }
 }
