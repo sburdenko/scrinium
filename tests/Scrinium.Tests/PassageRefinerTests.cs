@@ -180,4 +180,78 @@ public sealed class PassageRefinerTests : IDisposable
 
         Assert.Equal("## Version 3.4, released on 12 September 2025", Assert.Single(refined).Preview);
     }
+
+    [Fact]
+    public async Task When_a_cited_fragment_lacks_the_stated_number_the_highlight_moves_to_the_fragment_that_holds_it()
+    {
+        var wrong = Fragment("The POST /events endpoint accepts a batch of up to 1,000 events in one request.", offset: 0, number: 1);
+        var right = Fragment(Chunk, offset: 200, number: 2);
+
+        var refined = await Refiner.RefineAsync([wrong, right],
+            "The Team plan allows 1,200 requests per minute [1].", "What about Team?");
+
+        Assert.Equal("| Team | 1,200 |", refined[0].Preview);
+        Assert.Equal(right.Citation.DocumentId, refined[0].DocumentId);
+    }
+
+    [Fact]
+    public async Task The_first_claim_with_a_figure_decides_when_a_source_is_cited_twice()
+    {
+        var fragment = Fragment("| Team | 79 |\n| Business | 199 |");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "The cheapest plan is Team at 79 euros per month [1]. It is cheaper than Business at 199 euros per month [1].",
+            "What is the cheapest plan?");
+
+        Assert.Equal("| Team | 79 |", Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task Adjacent_sentences_on_the_same_line_are_highlighted_together_when_the_answer_states_both()
+    {
+        var fragment = Fragment(
+            "Monthly plans can be cancelled at any time. Annual plans are refunded in full when cancelled within the first 30 days. After that, the remaining months are not refunded.");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Annual plans are refunded in full when cancelled within the first 30 days. After that, the remaining months are not refunded [1].",
+            "Can I get a refund?");
+
+        Assert.Equal(
+            "Annual plans are refunded in full when cancelled within the first 30 days. After that, the remaining months are not refunded.",
+            Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task An_introductory_sentence_with_the_firm_name_does_not_beat_the_sentence_about_the_asked_day()
+    {
+        var fragment = Fragment(
+            "# Öffnungszeiten und Kontakt\n\n" +
+            "Steuerberatung Müller & Partner ist eine fiktive Kanzlei für dieses Demo-Projekt.\n\n" +
+            "- Samstag: nach Vereinbarung\n" +
+            "- Sonntag und an gesetzlichen Feiertagen: geschlossen");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Nein, die Steuerberatung Müller & Partner ist sonntags geschlossen [1].",
+            "Haben Sie sonntags geöffnet?");
+
+        Assert.Equal("- Sonntag und an gesetzlichen Feiertagen: geschlossen", Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task A_pronoun_sentence_about_another_feature_does_not_beat_the_row_that_names_the_asked_feature()
+    {
+        var fragment = Fragment(
+            "| Feature | Free | Starter | Team | Business |\n" +
+            "|---|---|---|---|---|\n" +
+            "| Audit log | not included | not included | included | included |\n\n" +
+            "Email alerts notify a team member when a metric crosses a threshold. They are available on Team and Business.");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "The audit log is included in the Team and Business plans [1].",
+            "Which plans include the audit log?");
+
+        Assert.Equal("| Audit log | not included | not included | included | included |", Assert.Single(refined).Preview);
+    }
 }
+
+

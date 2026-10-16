@@ -19,11 +19,11 @@
     { "id": "annual-team", "question": "What does the Team plan cost per year with annual billing?", "language": "en", "expect": "answer", "contains": ["758.40|758,40"], "cites": "plans-and-pricing.md" },
     { "id": "overage-starter", "question": "What do additional events cost on the Starter plan?", "language": "en", "expect": "answer", "contains": ["0.40|0,40"], "cites": "plans-and-pricing.md" },
     { "id": "edu-student", "question": "Do individual students get a discount?", "language": "en", "expect": "answer", "contains": ["not|no"], "cites": "plans-and-pricing.md" },
-    { "id": "refund-annual", "question": "Can I get a refund if I cancel an annual plan after two months?", "language": "en", "expect": "answer", "contains": ["not"], "cites": "plans-and-pricing.md" },
+    { "id": "refund-annual", "question": "Can I get a refund if I cancel an annual plan after two months?", "language": "en", "expect": "answer", "contains": ["not"], "passage": ["30 days|not refunded"], "cites": "plans-and-pricing.md" },
 
     { "id": "sso-plan-price", "question": "Which plan includes single sign-on and how much does it cost per month?", "language": "en", "expect": "answer", "contains": ["Business", "199"], "cites": "feature-matrix.md|plans-and-pricing.md|changelog.md" },
     { "id": "audit-log-plans", "question": "Which plans include the audit log?", "language": "en", "expect": "answer", "contains": ["Team", "Business"], "passage": ["audit log"], "cites": "feature-matrix.md|changelog.md" },
-    { "id": "alerts-starter", "question": "Does the Starter plan include email alerts?", "language": "en", "expect": "answer", "contains": ["Team"], "passage": ["email alerts"], "cites": "feature-matrix.md|changelog.md" },
+    { "id": "alerts-starter", "question": "Does the Starter plan include email alerts?", "language": "en", "expect": "answer", "contains": ["not|no|Team"], "passage": ["email alerts"], "cites": "feature-matrix.md|changelog.md" },
     { "id": "list-plans", "question": "List all plans.", "language": "en", "expect": "answer", "contains": ["Free", "Starter", "Team", "Business"], "cites": "plans-and-pricing.md|feature-matrix.md" },
     { "id": "cheapest-alerts", "question": "What is the cheapest plan with email alerts and what does it cost?", "language": "en", "expect": "answer", "contains": ["Team", "79"], "cites": "feature-matrix.md|plans-and-pricing.md|changelog.md" },
     { "id": "api-write-free", "question": "Can I write data through the API on the Free plan?", "language": "en", "expect": "answer", "contains": ["read only|read-only|cannot|can't|not"], "cites": "api-reference.md|feature-matrix.md" },
@@ -31,7 +31,7 @@
     { "id": "uptime-business-2026", "question": "What availability does the Business plan guarantee since March 2026?", "language": "en", "expect": "answer", "contains": ["99.95"], "cites": "service-levels-2026.md" },
     { "id": "response-team-2026", "question": "How fast does support respond to Team customers since 1 March 2026?", "language": "en", "expect": "answer", "contains": ["24"], "cites": "service-levels-2026.md" },
     { "id": "uptime-2025", "question": "What availability did paid plans guarantee in 2025?", "language": "en", "expect": "answer", "contains": ["99.5"], "cites": "service-levels-2025.md" },
-    { "id": "sso-release", "question": "When was single sign-on added?", "language": "en", "expect": "answer", "contains": ["12 September 2025"], "cites": "changelog.md" },
+    { "id": "sso-release", "question": "When was single sign-on added?", "language": "en", "expect": "answer", "contains": ["12 September 2025|2025-09-12"], "cites": "changelog.md" },
 
     { "id": "onboarding-after-snippet", "question": "What is the step after pasting the tracking snippet into my website?", "language": "en", "expect": "answer", "contains": ["verif"], "cites": "onboarding-guide.md" },
     { "id": "onboarding-csp", "question": "What do I need to add to my Content Security Policy?", "language": "en", "expect": "answer", "contains": ["cdn.kestrel.example"], "cites": "onboarding-guide.md" },

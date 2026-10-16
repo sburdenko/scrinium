@@ -93,15 +93,30 @@ public sealed class AnswerService(
             }
         }
 
+        var fullText = raw.ToString();
         switch (reply)
         {
             case Reply.DeclinedUpFront:
                 if (!explained)
+                {
                     yield return new AnswerEvent.TextDelta(PromptBuilder.DeclinedMessage);
+                    yield break;
+                }
+
+                var afterMarker = fullText[(fullText.IndexOf(PromptBuilder.DeclineMarker, StringComparison.Ordinal) + PromptBuilder.DeclineMarker.Length)..].TrimStart();
+                if (IsGroundedAnswer(afterMarker, searchQuery, found.Fragments))
+                {
+                    var initial = found.Fragments.Select(f => f.Citation).ToList();
+                    yield return new AnswerEvent.SourcesFound(initial);
+                    var recovered = await refiner.RefineAsync(found.Fragments, afterMarker, searchQuery, ct);
+                    if (recovered.Zip(found.Fragments, (after, fragment) => after.Location != fragment.Citation.Location).Any(x => x))
+                        yield return new AnswerEvent.SourcesRefined(recovered);
+                }
+
                 yield break;
 
             case Reply.DeclinedLate:
-                var withoutMarker = CitationMarkers.Strip(raw.ToString().Replace(PromptBuilder.DeclineMarker, " ", StringComparison.Ordinal));
+                var withoutMarker = CitationMarkers.Strip(fullText.Replace(PromptBuilder.DeclineMarker, " ", StringComparison.Ordinal));
                 yield return new AnswerEvent.Declined(withoutMarker.Length > 0 ? withoutMarker : PromptBuilder.DeclinedMessage);
                 yield break;
         }
@@ -109,11 +124,63 @@ public sealed class AnswerService(
         if (raw.Length > shown)
             yield return new AnswerEvent.TextDelta(raw.ToString(shown, raw.Length - shown));
 
-        var refined = await refiner.RefineAsync(found.Fragments, raw.ToString(), searchQuery, ct);
+        if (StatesMissingInDocuments(fullText))
+        {
+            var cleaned = CitationMarkers.Strip(fullText);
+            yield return new AnswerEvent.Declined(cleaned.Length > 0 ? cleaned : PromptBuilder.DeclinedMessage);
+            yield break;
+        }
+
+        var refined = await refiner.RefineAsync(found.Fragments, fullText, searchQuery, ct);
         var changed = refined.Zip(found.Fragments, (after, fragment) => after.Location != fragment.Citation.Location).Any(x => x);
         if (changed)
             yield return new AnswerEvent.SourcesRefined(refined);
     }
+
+    private static bool IsGroundedAnswer(string text, string question, IReadOnlyList<ContextFragment> fragments)
+    {
+        if (StatesMissingInDocuments(text))
+            return false;
+
+        var cited = CitationMarkers.CitedNumbers(text);
+        if (cited.Count == 0)
+            return false;
+
+        var clean = CitationMarkers.Strip(text);
+        var questionNumbers = NumberEvidence.Numbers(question);
+        var questionWords = NumberEvidence.Words(question);
+
+        return fragments
+            .Where(f => cited.Contains(f.Citation.Number))
+            .Any(f => NumberEvidence.Overlap(clean, f.ChunkText, questionNumbers) > 0
+                || NumberEvidence.WordOverlap(clean, f.ChunkText, questionWords) >= 0.4);
+    }
+
+    private static readonly string[] MissingPhrases =
+    [
+        "do not mention",
+        "does not mention",
+        "not mentioned in the",
+        "contain no information",
+        "contains no information",
+        "do not contain information",
+        "no information about",
+        "keine informationen darüber",
+        "enthalten keine informationen",
+        "enthält keine informationen",
+        "nicht explizit genannt",
+        "nicht explizit aufgeführt",
+        "bereitgestellten fragmenten nicht",
+        "fragmenten nicht enthalten",
+        "keine angaben über",
+        "keine angaben zu",
+        "nicht in den bereitgestellten fragmenten",
+        "не содержат информации",
+        "нет информации о"
+    ];
+
+    private static bool StatesMissingInDocuments(string text) =>
+        MissingPhrases.Any(phrase => text.Contains(phrase, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>How many trailing characters could still grow into the decline marker and must wait for the next token.</summary>
     private static int HeldBack(string text)

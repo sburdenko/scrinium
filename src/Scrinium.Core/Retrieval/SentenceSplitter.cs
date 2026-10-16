@@ -5,8 +5,9 @@ public static class SentenceSplitter
     private const int MinLength = 20;
     private const int MaxRunWithoutBreak = 160;
 
-    /// <summary>A Markdown heading names a section; it is evidence only for what it states itself, such as a date.</summary>
-    public static bool IsHeading(string text, PassageSpan span) => text[span.Start] == '#';
+    /// <summary>A Markdown heading or a colon-ended lead-in names a section or list; it is evidence only for a figure it states itself.</summary>
+    public static bool IsHeading(string text, PassageSpan span) =>
+        text[span.Start] == '#' || text[span.Start + span.Length - 1] == ':';
 
     public static IReadOnlyList<PassageSpan> Split(string text)
     {
@@ -35,7 +36,22 @@ public static class SentenceSplitter
         var terminal = c is '.' or '!' or '?' or '…';
         return terminal
             && (index + 1 == text.Length || char.IsWhiteSpace(text[index + 1]))
-            && !(c == '.' && IsDayBeforeMonth(text, index));
+            && !(c == '.' && IsDayBeforeMonth(text, index))
+            && !InListItemLine(text, index);
+    }
+
+    private static bool InListItemLine(string text, int index)
+    {
+        var lineStart = index == 0 ? 0 : text.LastIndexOf('\n', index - 1) + 1;
+        while (lineStart < index && text[lineStart] is ' ' or '\t')
+            lineStart++;
+        if (!StartsListItem(text, lineStart))
+            return false;
+
+        var next = index + 1;
+        while (next < text.Length && text[next] is ' ' or '\t')
+            next++;
+        return next < text.Length && text[next] is not ('\n' or '\r') && !StartsListItem(text, next);
     }
 
     private static bool IsTableSeparator(string text, int start, int end)

@@ -93,5 +93,6 @@ public static class AnswerScorer
             : new CheckResult.Failed("language", $"expected {expected}, detected {detected}");
     }
 
-    private static string Normalize(string text) => text.Replace(' ', ' ');
+    private static string Normalize(string text) =>
+        text.Replace('\u00A0', ' ').Replace('\u202F', ' ').Replace('\u2009', ' ');
 }
