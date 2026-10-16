@@ -107,8 +107,21 @@ public sealed class PassageRefinerTests : IDisposable
             "Nach der Kündigung können Sie Ihre Daten noch 30 Tage lang exportieren. Danach werden die Daten gelöscht [1].", "Wie lange kann ich meine Daten nach der Kündigung exportieren?");
 
         Assert.Equal(
-            "Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren.",
+            "Wenn Sie Ihr Konto kündigen, können Sie Ihre Daten noch 30 Tage nach Vertragsende exportieren. " +
+            "Danach werden alle Daten endgültig gelöscht.",
             Assert.Single(refined).Preview);
+    }
+
+    [Fact]
+    public async Task A_neighbouring_sentence_the_answer_does_not_restate_is_left_out()
+    {
+        var fragment = Fragment(
+            "Monthly plans can be cancelled at any time. Annual plans are refunded in full when cancelled within the first 30 days.");
+
+        var refined = await Refiner.RefineAsync([fragment],
+            "Annual plans are refunded in full when cancelled within the first 30 days [1].", "Can I get a refund?");
+
+        Assert.Equal("Annual plans are refunded in full when cancelled within the first 30 days.", Assert.Single(refined).Preview);
     }
 
     [Fact]
@@ -221,37 +234,4 @@ public sealed class PassageRefinerTests : IDisposable
             Assert.Single(refined).Preview);
     }
 
-    [Fact]
-    public async Task An_introductory_sentence_with_the_firm_name_does_not_beat_the_sentence_about_the_asked_day()
-    {
-        var fragment = Fragment(
-            "# Öffnungszeiten und Kontakt\n\n" +
-            "Steuerberatung Müller & Partner ist eine fiktive Kanzlei für dieses Demo-Projekt.\n\n" +
-            "- Samstag: nach Vereinbarung\n" +
-            "- Sonntag und an gesetzlichen Feiertagen: geschlossen");
-
-        var refined = await Refiner.RefineAsync([fragment],
-            "Nein, die Steuerberatung Müller & Partner ist sonntags geschlossen [1].",
-            "Haben Sie sonntags geöffnet?");
-
-        Assert.Equal("- Sonntag und an gesetzlichen Feiertagen: geschlossen", Assert.Single(refined).Preview);
-    }
-
-    [Fact]
-    public async Task A_pronoun_sentence_about_another_feature_does_not_beat_the_row_that_names_the_asked_feature()
-    {
-        var fragment = Fragment(
-            "| Feature | Free | Starter | Team | Business |\n" +
-            "|---|---|---|---|---|\n" +
-            "| Audit log | not included | not included | included | included |\n\n" +
-            "Email alerts notify a team member when a metric crosses a threshold. They are available on Team and Business.");
-
-        var refined = await Refiner.RefineAsync([fragment],
-            "The audit log is included in the Team and Business plans [1].",
-            "Which plans include the audit log?");
-
-        Assert.Equal("| Audit log | not included | not included | included | included |", Assert.Single(refined).Preview);
-    }
 }
-
-

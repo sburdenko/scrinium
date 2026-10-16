@@ -13,8 +13,8 @@ public sealed class PassageRefiner(
     ISettingsProvider settings)
 {
     private const double QuestionWeight = 0.3;
-    private const double WordWeight = 0.6;
-    private const double NeighborCoverage = 0.75;
+    private const double WordWeight = 0.3;
+    private const double NeighborCoverage = 0.5;
     private const double SameEvidence = 1e-9;
     private const int PreviewLength = 220;
 
@@ -30,8 +30,7 @@ public sealed class PassageRefiner(
     {
         var asked = question.Trim();
         var questionNumbers = NumberEvidence.Numbers(asked);
-        var questionWords = NumberEvidence.Words(asked);
-        var answerWords = NumberEvidence.Words(CitationMarkers.Strip(answer));
+        var answerText = CitationMarkers.Strip(answer);
         var claims = Claims(answer);
 
         var work = fragments
@@ -80,7 +79,7 @@ public sealed class PassageRefiner(
                 var vector = VectorMath.Normalize(embeddings[next++].Vector.Span);
                 var likeness = VectorMath.Dot(claimVector, vector)
                     + (questionVector is null ? 0 : QuestionWeight * VectorMath.Dot(questionVector, vector))
-                    + WordWeight * NumberEvidence.WordOverlap(claim, sentence, questionWords);
+                    + WordWeight * WordEvidence.Likeness(claim, sentence);
                 scored.Add((span, NumberEvidence.Overlap(claim, sentence, questionNumbers), likeness));
             }
 
@@ -93,7 +92,7 @@ public sealed class PassageRefiner(
             // A sentence that repeats the figures the answer states is the evidence; likeness only chooses among those.
             var strongest = eligible.Max(s => s.Numbers);
             var best = eligible.Where(s => s.Numbers >= strongest - SameEvidence).MaxBy(s => s.Likeness);
-            var expanded = ExpandSpan(target.ChunkText, spans, best.Span, answerWords, questionWords);
+            var expanded = ExpandSpan(target.ChunkText, spans, best.Span, answerText);
             refined[number] = Place(target, expanded, number);
         }
 
@@ -135,8 +134,7 @@ public sealed class PassageRefiner(
         string text,
         IReadOnlyList<PassageSpan> spans,
         PassageSpan chosen,
-        IReadOnlySet<string> answerWords,
-        IReadOnlySet<string> questionWords)
+        string answer)
     {
         var index = -1;
         for (var i = 0; i < spans.Count; i++)
@@ -152,9 +150,9 @@ public sealed class PassageRefiner(
             return chosen;
 
         var result = chosen;
-        if (index + 1 < spans.Count && ShouldJoin(text, result, spans[index + 1], answerWords, questionWords))
+        if (index + 1 < spans.Count && ShouldJoin(text, result, spans[index + 1], answer, isChosenLeft: true))
             result = new PassageSpan(result.Start, spans[index + 1].Start + spans[index + 1].Length - result.Start);
-        if (index - 1 >= 0 && ShouldJoin(text, spans[index - 1], result, answerWords, questionWords))
+        if (index - 1 >= 0 && ShouldJoin(text, spans[index - 1], result, answer, isChosenLeft: false))
             result = new PassageSpan(spans[index - 1].Start, result.Start + result.Length - spans[index - 1].Start);
 
         return result;
@@ -164,8 +162,8 @@ public sealed class PassageRefiner(
         string text,
         PassageSpan left,
         PassageSpan right,
-        IReadOnlySet<string> answerWords,
-        IReadOnlySet<string> questionWords)
+        string answer,
+        bool isChosenLeft)
     {
         var combinedLength = right.Start + right.Length - left.Start;
         if (combinedLength > PreviewLength)
@@ -175,15 +173,10 @@ public sealed class PassageRefiner(
         if (between.Contains('\n'))
             return false;
 
-        foreach (var candidate in new[] { right, left })
-        {
-            var words = NumberEvidence.Words(text.Substring(candidate.Start, candidate.Length));
-            words.ExceptWith(questionWords);
-            if (words.Count < 2 || (double)words.Count(answerWords.Contains) / words.Count < NeighborCoverage)
-                return false;
-        }
-
-        return true;
+        var (chosen, neighbour) = isChosenLeft ? (left, right) : (right, left);
+        var beyondChosen = WordEvidence.Remaining(answer, text.Substring(chosen.Start, chosen.Length));
+        return beyondChosen.Length > 0
+            && WordEvidence.Coverage(beyondChosen, text.Substring(neighbour.Start, neighbour.Length)) >= NeighborCoverage;
     }
 
     private static string Slice(ContextFragment fragment, PassageSpan span) =>
