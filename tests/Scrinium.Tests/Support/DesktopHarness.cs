@@ -52,10 +52,19 @@ public sealed class DesktopHarness : IDisposable
         return reopened;
     }
 
-    public async Task<Document> AddDocumentAsync(string name, string text)
+    public Task<Document> AddDocumentAsync(string name, string text) => AddFileAsync(name, App.WriteFile(name, text));
+
+    public Task<Document> AddDocumentAsync(string name, byte[] content)
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(App.WriteFile(name, ""))!, name);
+        File.WriteAllBytes(path, content);
+        return AddFileAsync(name, path);
+    }
+
+    private async Task<Document> AddFileAsync(string name, string path)
     {
         var library = Active.Scope.Library;
-        var document = await library.ImportAsync(App.WriteFile(name, text));
+        var document = await library.ImportAsync(path);
         var deadline = DateTime.UtcNow + IndexingTimeout;
         while (DateTime.UtcNow < deadline)
         {

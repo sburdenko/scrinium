@@ -8,7 +8,7 @@ public sealed class AvaloniaFilePicker : IFilePicker
 {
     private static readonly FilePickerFileType Documents = new("Documents")
     {
-        Patterns = ["*.txt", "*.md", "*.markdown", "*.pdf"]
+        Patterns = ["*.txt", "*.md", "*.markdown", "*.pdf", "*.html", "*.htm", "*.docx"]
     };
 
     public async Task<IReadOnlyList<string>> PickDocumentsAsync()

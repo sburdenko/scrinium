@@ -49,13 +49,14 @@ public sealed class CompositionTests : IDisposable
     }
 
     [Fact]
-    public void Both_text_extractors_are_registered()
+    public void Every_document_kind_has_exactly_one_registered_reader()
     {
         using var provider = Build();
 
         var extractors = provider.GetServices<Scrinium.Core.Extraction.ITextExtractor>().ToList();
 
-        Assert.Equal(2, extractors.Count);
+        Assert.All(Enum.GetValues<Scrinium.Core.Documents.DocumentKind>(), kind =>
+            Assert.Single(extractors, e => e.Supports(kind)));
     }
 
     [Fact]

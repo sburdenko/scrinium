@@ -1,4 +1,7 @@
 using Scrinium.Core.Chat;
+using Scrinium.Core.Documents;
+using Scrinium.Core.Extraction;
+using Scrinium.Extraction;
 using Scrinium.Eval;
 using Scrinium.Tests.Support;
 
@@ -122,6 +125,20 @@ public class DemoDatasetTests
 
     private static string Folder(string company) => Path.Combine(RepositoryRoot(), "demo", company);
 
+    private static readonly IReadOnlyList<ITextExtractor> Extractors = ExtractionServices.CreateExtractors();
+
+    private static string ReadDocument(string path)
+    {
+        var kind = Assert.IsType<FileSupport.Supported>(DocumentKinds.Check(path)).Kind;
+        return string.Join("\n", Extractors.Single(e => e.Supports(kind)).Extract(path).Select(s => s.Text));
+    }
+
+    [Theory]
+    [MemberData(nameof(Companies))]
+    public void Every_document_is_in_a_format_the_archive_reads(string company) =>
+        Assert.All(Directory.GetFiles(Path.Combine(Folder(company), "documents")), path =>
+            Assert.IsType<FileSupport.Supported>(DocumentKinds.Check(path)));
+
     [Theory]
     [MemberData(nameof(Companies))]
     public void The_dataset_is_valid_and_large_enough(string company)
@@ -159,11 +176,8 @@ public class DemoDatasetTests
         foreach (var c in cases.Where(c => c.Language == documentLanguage && c.History.Count == 0 && c.Expect is Expectation.Answers { Cites: not null }))
         {
             var answers = (Expectation.Answers)c.Expect;
-            var names = answers.Cites!.Split('|').Where(n => !n.EndsWith(".pdf", StringComparison.Ordinal)).ToList();
-            if (names.Count == 0)
-                continue;
-
-            var text = string.Join("\n", names.Select(n => File.ReadAllText(Path.Combine(folder, "documents", n))));
+            var names = answers.Cites!.Split('|');
+            var text = string.Join("\n", names.Select(n => ReadDocument(Path.Combine(folder, "documents", n))));
             Assert.All(answers.Contains, fact =>
                 Assert.True(
                     fact.Split('|').Any(variant => text.Contains(variant.Trim(), StringComparison.OrdinalIgnoreCase))

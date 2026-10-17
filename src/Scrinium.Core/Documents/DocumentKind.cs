@@ -4,5 +4,7 @@ public enum DocumentKind
 {
     Text,
     Markdown,
-    Pdf
+    Pdf,
+    Html,
+    Docx
 }

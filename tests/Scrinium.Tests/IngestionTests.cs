@@ -40,6 +40,30 @@ public sealed class IngestionTests : IDisposable
     }
 
     [Fact]
+    public async Task A_word_document_is_indexed_with_sections_from_its_heading_styles()
+    {
+        var docx = new TestDocx().Heading(1, "Handbook").Heading(2, "Travel").Paragraph(LongSection("travel costs")).Build();
+        var path = _app.WriteFile("handbook.docx", docx);
+
+        var document = await _app.ImportAndProcessAsync(path);
+
+        Assert.IsType<IndexState.Ready>(document.State);
+        var chunks = await _app.Store.GetChunkRangeAsync(document.Id, 0, int.MaxValue);
+        Assert.Equal("Handbook › Travel", chunks[^1].Section);
+    }
+
+    [Fact]
+    public async Task An_html_page_is_indexed_without_its_markup()
+    {
+        var path = _app.WriteFile("guide.html", "<html><body><nav>Menu</nav><h1>Guide</h1><p class=\"lead\">Install the agent.</p></body></html>");
+
+        var document = await _app.ImportAndProcessAsync(path);
+
+        var chunk = Assert.Single(await _app.Store.GetChunkRangeAsync(document.Id, 0, int.MaxValue));
+        Assert.Equal("# Guide\n\nInstall the agent.", chunk.Text);
+    }
+
+    [Fact]
     public async Task Import_copies_original_into_data_folder()
     {
         var path = _app.WriteFile("a.txt", "содержимое");
@@ -56,6 +80,16 @@ public sealed class IngestionTests : IDisposable
         var path = _app.WriteFile("a.xyz", "x");
 
         await Assert.ThrowsAsync<NotSupportedException>(() => _app.Library.ImportAsync(path));
+    }
+
+    [Fact]
+    public async Task Import_of_a_word_97_document_says_how_to_convert_it()
+    {
+        var path = _app.WriteFile("old.doc", "x");
+
+        var refused = await Assert.ThrowsAsync<NotSupportedException>(() => _app.Library.ImportAsync(path));
+
+        Assert.Contains("Save it as .docx", refused.Message);
     }
 
     [Fact]
