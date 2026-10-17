@@ -18,6 +18,7 @@ public sealed class TextChunker(ChunkingOptions options)
         if (string.IsNullOrWhiteSpace(text))
             yield break;
 
+        var outline = SectionOutline.Of(text);
         var ranges = Pack(text, 0, text.Length, 0);
         var previousStart = -1;
 
@@ -31,7 +32,8 @@ public sealed class TextChunker(ChunkingOptions options)
                 continue;
 
             var slice = text[trimmedStart..trimmedEnd];
-            yield return new ChunkDraft(segment.Page, trimmedStart, slice, TokenEstimator.Estimate(slice));
+            var section = outline.At(Trim(text, rawStart, rawEnd).Start);
+            yield return new ChunkDraft(segment.Page, trimmedStart, slice, TokenEstimator.Estimate(slice), section);
         }
     }
 
@@ -126,9 +128,30 @@ public sealed class TextChunker(ChunkingOptions options)
             weight += text[cursor] < 128 ? 0.25 : 0.5;
         }
 
-        while (cursor < nextStart && !char.IsWhiteSpace(text[cursor]))
-            cursor++;
+        return SentenceStart(text, cursor, nextStart) ?? WordStart(text, cursor, nextStart);
+    }
 
+    private static int? SentenceStart(string text, int from, int to)
+    {
+        for (var i = from; i < to; i++)
+        {
+            if (!char.IsWhiteSpace(text[i]) && StartsSentence(text, i))
+                return i;
+        }
+
+        return null;
+    }
+
+    private static bool StartsSentence(string text, int index) =>
+        index == 0
+        || text[index - 1] == '\n'
+        || (char.IsWhiteSpace(text[index - 1]) && index >= 2 && text[index - 2] is '.' or '!' or '?' or ':' or ';');
+
+    private static int WordStart(string text, int from, int to)
+    {
+        var cursor = from;
+        while (cursor < to && !char.IsWhiteSpace(text[cursor]))
+            cursor++;
         return cursor;
     }
 

@@ -111,7 +111,7 @@ public sealed class SessionStoreTests : IDisposable
         {
             connection.Open();
             using var downgrade = connection.CreateCommand();
-            downgrade.CommandText = "DROP TABLE session_exchanges; DROP TABLE sessions; PRAGMA user_version = 1;";
+            downgrade.CommandText = "DROP TABLE session_exchanges; DROP TABLE sessions; ALTER TABLE chunks DROP COLUMN section; PRAGMA user_version = 1;";
             downgrade.ExecuteNonQuery();
         }
 

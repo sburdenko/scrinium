@@ -99,8 +99,8 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
             await using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
-                INSERT INTO chunks (id, document_id, ordinal, page, offset, text, date, token_count, embedding)
-                VALUES ($id, $doc, $ordinal, $page, $offset, $text, $date, $tokens, $embedding)
+                INSERT INTO chunks (id, document_id, ordinal, page, offset, text, date, token_count, embedding, section)
+                VALUES ($id, $doc, $ordinal, $page, $offset, $text, $date, $tokens, $embedding, $section)
                 """;
             insert.Parameters.AddWithValue("$id", chunk.Id.ToString());
             insert.Parameters.AddWithValue("$doc", chunk.DocumentId.ToString());
@@ -110,6 +110,7 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
             insert.Parameters.AddWithValue("$text", chunk.Text);
             insert.Parameters.AddWithValue("$date", chunk.Date.ToString(DateFormat, CultureInfo.InvariantCulture));
             insert.Parameters.AddWithValue("$tokens", chunk.TokenCount);
+            insert.Parameters.AddWithValue("$section", chunk.Section);
             insert.Parameters.AddWithValue("$embedding", VectorMath.ToBlob(VectorMath.Normalize(embedded.Vector)));
             await insert.ExecuteNonQueryAsync(ct);
         }
@@ -139,7 +140,7 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, document_id, ordinal, page, offset, text, date, token_count FROM chunks
+            SELECT id, document_id, ordinal, page, offset, text, date, token_count, section FROM chunks
             WHERE document_id = $doc AND ordinal BETWEEN $from AND $to ORDER BY ordinal
             """;
         command.Parameters.AddWithValue("$doc", documentId.ToString());
@@ -178,7 +179,7 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT c.id, c.document_id, c.ordinal, c.page, c.offset, c.text, c.date, c.token_count,
-                   c.embedding, d.title
+                   c.embedding, d.title, c.section
             FROM chunks c JOIN documents d ON d.id = c.document_id
             WHERE d.state = 'Ready' AND d.embedding_model = $model
             """;
@@ -278,5 +279,6 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         reader.GetInt32(4),
         reader.GetString(5),
         DateOnly.ParseExact(reader.GetString(6), DateFormat, CultureInfo.InvariantCulture),
-        reader.GetInt32(7));
+        reader.GetInt32(7),
+        reader.GetString(reader.GetOrdinal("section")));
 }

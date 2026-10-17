@@ -58,7 +58,7 @@ public sealed class IngestionPipeline(
         var options = new EmbeddingGenerationOptions { ModelId = model };
         foreach (var batch in drafts.Chunk(EmbeddingBatchSize))
         {
-            var generated = await embedder.GenerateAsync(batch.Select(d => d.Text).ToList(), options, ct);
+            var generated = await embedder.GenerateAsync(batch.Select(d => d.EmbeddingText).ToList(), options, ct);
             if (generated.Count != batch.Length)
                 throw new InvalidOperationException("The embedding model returned the wrong number of vectors.");
 
@@ -67,7 +67,7 @@ public sealed class IngestionPipeline(
 
         return drafts
             .Select((draft, index) => new EmbeddedChunk(
-                new Chunk(Guid.NewGuid(), document.Id, index, draft.Page, draft.Offset, draft.Text, document.FileDate, draft.TokenCount),
+                new Chunk(Guid.NewGuid(), document.Id, index, draft.Page, draft.Offset, draft.Text, document.FileDate, draft.TokenCount, draft.Section),
                 vectors[index]))
             .ToList();
     }

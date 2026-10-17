@@ -8,4 +8,5 @@ public sealed record Chunk(
     int Offset,
     string Text,
     DateOnly Date,
-    int TokenCount);
+    int TokenCount,
+    string Section = "");

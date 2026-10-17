@@ -77,6 +77,9 @@ public static class PromptBuilder
             if (citation.Page is { } page)
                 builder.Append(" page=\"").Append(page.ToString(CultureInfo.InvariantCulture)).Append('"');
 
+            if (fragment.Section.Length > 0)
+                builder.Append(" section=\"").Append(Attribute(fragment.Section)).Append('"');
+
             builder.AppendLine(">")
                 .AppendLine(Neutralize(fragment.PromptText))
                 .AppendLine("</fragment>");

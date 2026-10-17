@@ -15,6 +15,24 @@ public class PromptBuilderTests
         PromptBuilder.Build(question, fragments, [])[0].Text!;
 
     [Fact]
+    public void A_fragment_names_the_section_it_comes_from()
+    {
+        var fragment = Fragment(1) with { Section = "Тарифы › Бизнес" };
+
+        var prompt = SystemPrompt("question", fragment);
+
+        Assert.Contains("section=\"Тарифы › Бизнес\"", prompt);
+    }
+
+    [Fact]
+    public void A_fragment_without_a_section_has_no_section_attribute()
+    {
+        var prompt = SystemPrompt("question", Fragment(1));
+
+        Assert.DoesNotContain("section=", prompt);
+    }
+
+    [Fact]
     public void System_prompt_states_how_many_fragments_there_are_and_their_numbers()
     {
         var prompt = SystemPrompt("question", Fragment(1), Fragment(2), Fragment(3));
