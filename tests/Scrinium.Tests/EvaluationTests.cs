@@ -1,3 +1,4 @@
+using Scrinium.Core.Chunking;
 using Scrinium.Core.Chat;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Extraction;
@@ -47,6 +48,28 @@ public class EvalOptionsTests
 
         Assert.Equal(["a", "b"], options.Only);
     }
+
+    [Fact]
+    public void Chunking_defaults_to_code_in_own_chunks_and_section_paths_prepended()
+    {
+        var options = EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]);
+
+        Assert.Equal((CodeBlocks.OwnChunks, SectionPaths.Prepend), (options.Chunking.CodeBlocks, options.Chunking.SectionPaths));
+    }
+
+    [Fact]
+    public void Chunking_can_be_switched_for_a_comparison()
+    {
+        var options = EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--code-blocks", "with-text", "--section-paths", "omit"]);
+
+        Assert.Equal((CodeBlocks.WithText, SectionPaths.Omit), (options.Chunking.CodeBlocks, options.Chunking.SectionPaths));
+    }
+
+    [Theory]
+    [InlineData("--code-blocks", "sometimes")]
+    [InlineData("--section-paths", "maybe")]
+    public void An_unknown_chunking_choice_is_rejected(string option, string value) =>
+        Assert.Throws<ArgumentException>(() => EvalOptions.Parse(["--documents", "d", "--cases", "c.json", option, value]));
 
     [Fact]
     public void Without_the_only_option_every_case_runs()
@@ -476,6 +499,19 @@ public class EvaluationReportTests
         Assert.Contains("ok-case", markdown);
         Assert.Contains("bad-case", markdown);
         Assert.Contains("1 / 2", markdown);
+    }
+
+    [Fact]
+    public void The_report_names_how_the_documents_were_chunked()
+    {
+        var run = new EvaluationRun("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, [Result("ok-case", true, 1)])
+        {
+            Chunking = new ChunkingOptions(CodeBlocks: CodeBlocks.WithText, SectionPaths: SectionPaths.Omit)
+        };
+
+        var markdown = ReportWriter.Markdown(run);
+
+        Assert.Contains("- Chunking: code blocks with text, section paths omitted", markdown);
     }
 
     [Fact]

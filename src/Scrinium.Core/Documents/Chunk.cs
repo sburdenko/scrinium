@@ -9,4 +9,5 @@ public sealed record Chunk(
     string Text,
     DateOnly Date,
     int TokenCount,
-    string Section = "");
+    string Section = "",
+    ChunkContent Content = ChunkContent.Prose);

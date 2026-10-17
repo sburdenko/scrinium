@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Scrinium.Core;
 using Scrinium.Core.Chat;
+using Scrinium.Core.Chunking;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Ingestion;
 using Scrinium.Core.Settings;
@@ -30,6 +31,7 @@ try
     services.AddScriniumSqliteStorage();
     services.AddScriniumTextExtractors();
     services.AddScriniumOllama();
+    services.AddSingleton(new TextChunker(options.Chunking));
     await using var provider = services.BuildServiceProvider();
 
     var settings = provider.GetRequiredService<SettingsService>();
@@ -84,7 +86,10 @@ try
         settings.Current.ChatModel,
         settings.Current.EmbeddingModel,
         files.Count,
-        results);
+        results)
+    {
+        Chunking = options.Chunking
+    };
 
     var markdown = ReportWriter.Markdown(run);
     if (options.Report is not null)

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Scrinium.Core.Documents;
 
 namespace Scrinium.Core.Chunking;
 
@@ -8,8 +9,6 @@ internal sealed partial class SectionOutline
     // The prompt strips '<' and '>' from attributes, so the levels cannot be joined with '>'.
     public const string Separator = " › ";
 
-    private static readonly string[] Fences = ["```", "~~~"];
-
     private readonly IReadOnlyList<Heading> _headings;
 
     private SectionOutline(IReadOnlyList<Heading> headings) => _headings = headings;
@@ -17,21 +16,17 @@ internal sealed partial class SectionOutline
     [GeneratedRegex(@"^(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$")]
     private static partial Regex HeadingLine();
 
+    public static readonly SectionOutline Empty = new([]);
+
     public static SectionOutline Of(string text)
     {
+        var code = CodeFences.Split(text).Where(r => r.Content == ChunkContent.Code).ToList();
         var headings = new List<Heading>();
         IReadOnlyList<Heading> open = [];
-        var insideFence = false;
 
         foreach (var (start, line) in TextLines.Of(text))
         {
-            if (Fences.Any(fence => line.TrimStart().StartsWith(fence, StringComparison.Ordinal)))
-            {
-                insideFence = !insideFence;
-                continue;
-            }
-
-            if (insideFence || HeadingLine().Match(line) is not { Success: true } match)
+            if (code.Any(region => region.Contains(start)) || HeadingLine().Match(line) is not { Success: true } match)
                 continue;
 
             var level = match.Groups[1].Length;

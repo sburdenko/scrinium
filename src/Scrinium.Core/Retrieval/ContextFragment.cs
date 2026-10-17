@@ -1,3 +1,5 @@
+using Scrinium.Core.Documents;
+
 namespace Scrinium.Core.Retrieval;
 
 public sealed record ContextFragment(
@@ -5,4 +7,5 @@ public sealed record ContextFragment(
     string PromptText,
     string ChunkText = "",
     int ChunkOffset = 0,
-    string Section = "");
+    string Section = "",
+    ChunkContent Content = ChunkContent.Prose);

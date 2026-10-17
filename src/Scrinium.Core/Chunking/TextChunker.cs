@@ -4,8 +4,10 @@ namespace Scrinium.Core.Chunking;
 
 public sealed class TextChunker(ChunkingOptions options)
 {
-    private static readonly string[] Separators =
+    private static readonly string[] ProseSeparators =
         ["\n# ", "\n## ", "\n### ", "\n\n", "\n", ". ", "? ", "! ", "; ", ", ", " "];
+
+    private static readonly string[] CodeSeparators = ["\n\n", "\n", " "];
 
     public TextChunker() : this(new ChunkingOptions()) { }
 
@@ -16,13 +18,22 @@ public sealed class TextChunker(ChunkingOptions options)
     {
         var text = segment.Text;
         if (string.IsNullOrWhiteSpace(text))
-            yield break;
+            return [];
 
-        var outline = SectionOutline.Of(text);
-        var ranges = Pack(text, 0, text.Length, 0);
+        var outline = options.SectionPaths == SectionPaths.Prepend ? SectionOutline.Of(text) : SectionOutline.Empty;
+        IReadOnlyList<TextRegion> regions = options.CodeBlocks == CodeBlocks.OwnChunks
+            ? CodeFences.Split(text)
+            : [new TextRegion(0, text.Length, ChunkContent.Prose)];
+
+        return regions.SelectMany(region => ChunkRegion(segment.Page, text, region, outline));
+    }
+
+    private IEnumerable<ChunkDraft> ChunkRegion(int? page, string text, TextRegion region, SectionOutline outline)
+    {
+        var separators = region.Content == ChunkContent.Code ? CodeSeparators : ProseSeparators;
         var previousStart = -1;
 
-        foreach (var (rawStart, rawEnd) in ranges)
+        foreach (var (rawStart, rawEnd) in Pack(text, region.Start, region.End, separators, 0))
         {
             var start = previousStart < 0 ? rawStart : OverlapStart(text, previousStart, rawStart);
             previousStart = rawStart;
@@ -33,21 +44,21 @@ public sealed class TextChunker(ChunkingOptions options)
 
             var slice = text[trimmedStart..trimmedEnd];
             var section = outline.At(Trim(text, rawStart, rawEnd).Start);
-            yield return new ChunkDraft(segment.Page, trimmedStart, slice, TokenEstimator.Estimate(slice), section);
+            yield return new ChunkDraft(page, trimmedStart, slice, TokenEstimator.Estimate(slice), section, region.Content);
         }
     }
 
-    private List<(int Start, int End)> Pack(string text, int start, int end, int separatorIndex)
+    private List<(int Start, int End)> Pack(string text, int start, int end, string[] separators, int separatorIndex)
     {
         if (Weight(text, start, end) <= options.MaxTokens)
             return [(start, end)];
 
-        if (separatorIndex >= Separators.Length)
+        if (separatorIndex >= separators.Length)
             return HardSplit(start, end);
 
-        var parts = Cut(text, start, end, Separators[separatorIndex]);
+        var parts = Cut(text, start, end, separators[separatorIndex]);
         if (parts.Count == 1)
-            return Pack(text, start, end, separatorIndex + 1);
+            return Pack(text, start, end, separators, separatorIndex + 1);
 
         var result = new List<(int Start, int End)>();
         var run = (Start: -1, End: -1, Weight: 0.0);
@@ -65,7 +76,7 @@ public sealed class TextChunker(ChunkingOptions options)
             if (weight > options.MaxTokens)
             {
                 Flush();
-                result.AddRange(Pack(text, partStart, partEnd, separatorIndex + 1));
+                result.AddRange(Pack(text, partStart, partEnd, separators, separatorIndex + 1));
             }
             else if (run.Start >= 0 && run.Weight + weight <= options.MaxTokens)
             {

@@ -1,3 +1,4 @@
+using Scrinium.Core.Documents;
 using Scrinium.Core.Retrieval;
 using Scrinium.Tests.Support;
 
@@ -141,6 +142,20 @@ public sealed class RetrieverTests : IDisposable
         var outcome = await app.Retriever.RetrieveAsync("walrus discount annual billing");
 
         Assert.Equal("Prices", Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments[0].Section);
+    }
+
+    [Fact]
+    public async Task A_fragment_says_when_its_chunk_is_code()
+    {
+        var app = NewApp();
+        await app.ImportAndProcessAsync(app.WriteFile("install.md",
+            "# Install\n\nThe installer needs Node.\n\n```bash\nnpm install walrus-cli --global\n```"));
+
+        var outcome = await app.Retriever.RetrieveAsync("npm install walrus-cli --global");
+
+        var fragment = Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments[0];
+        Assert.Equal(ChunkContent.Code, fragment.Content);
+        Assert.Equal("Install", fragment.Section);
     }
 
     private static string LongNote()

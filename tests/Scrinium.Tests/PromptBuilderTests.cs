@@ -25,6 +25,20 @@ public class PromptBuilderTests
     }
 
     [Fact]
+    public void A_code_fragment_says_it_is_code()
+    {
+        var prompt = SystemPrompt("question", Fragment(1) with { Content = ChunkContent.Code });
+
+        Assert.Contains("kind=\"code\"", prompt);
+    }
+
+    [Fact]
+    public void A_prose_fragment_has_no_kind_attribute()
+    {
+        Assert.DoesNotContain("kind=", SystemPrompt("question", Fragment(1)));
+    }
+
+    [Fact]
     public void A_fragment_without_a_section_has_no_section_attribute()
     {
         var prompt = SystemPrompt("question", Fragment(1));

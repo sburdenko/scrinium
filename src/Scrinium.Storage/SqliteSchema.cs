@@ -69,6 +69,7 @@ internal static class SqliteSchema
 
     private const string ChunkContext = """
         ALTER TABLE chunks ADD COLUMN section TEXT NOT NULL DEFAULT '';
+        ALTER TABLE chunks ADD COLUMN content TEXT NOT NULL DEFAULT 'Prose';
         """;
 
     private const string Sessions = """

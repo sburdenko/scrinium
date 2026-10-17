@@ -133,15 +133,17 @@ public sealed class SqliteStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Chunk_section_survives_storage()
+    public async Task Chunk_section_and_content_survive_storage()
     {
         var doc = NewDocument();
         await _store.AddAsync(doc);
-        var chunk = new Chunk(Guid.NewGuid(), doc.Id, 0, null, 0, "Цена 10 евро.", doc.FileDate, 4, "Тарифы › Бизнес");
+        var chunk = new Chunk(Guid.NewGuid(), doc.Id, 0, null, 0, "```\nmake\n```", doc.FileDate, 4, "Тарифы › Бизнес", ChunkContent.Code);
         await _store.ReplaceChunksAsync(doc.Id, [new EmbeddedChunk(chunk, [1, 0])], "m");
 
-        Assert.Equal("Тарифы › Бизнес", Assert.Single(await _store.GetChunkRangeAsync(doc.Id, 0, 0)).Section);
-        Assert.Equal("Тарифы › Бизнес", Assert.Single(await _store.SearchAsync([1, 0], "m", 5)).Chunk.Section);
+        var ranged = Assert.Single(await _store.GetChunkRangeAsync(doc.Id, 0, 0));
+        var found = Assert.Single(await _store.SearchAsync([1, 0], "m", 5)).Chunk;
+        Assert.Equal(("Тарифы › Бизнес", ChunkContent.Code), (ranged.Section, ranged.Content));
+        Assert.Equal(("Тарифы › Бизнес", ChunkContent.Code), (found.Section, found.Content));
     }
 
     [Fact]
@@ -156,7 +158,7 @@ public sealed class SqliteStoreTests : IDisposable
         {
             connection.Open();
             using var downgrade = connection.CreateCommand();
-            downgrade.CommandText = "ALTER TABLE chunks DROP COLUMN section; PRAGMA user_version = 2;";
+            downgrade.CommandText = "ALTER TABLE chunks DROP COLUMN section; ALTER TABLE chunks DROP COLUMN content; PRAGMA user_version = 2;";
             downgrade.ExecuteNonQuery();
         }
 
@@ -164,5 +166,6 @@ public sealed class SqliteStoreTests : IDisposable
 
         Assert.Equal("kept", hit.Chunk.Text);
         Assert.Equal("", hit.Chunk.Section);
+        Assert.Equal(ChunkContent.Prose, hit.Chunk.Content);
     }
 }
