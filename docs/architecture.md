@@ -6,8 +6,8 @@ This page is for anyone, not only programmers. It explains what the program is m
 
 ```
   your files ──▶ Ingestion ──▶ the archive ──▶ Retrieval ──▶ Answering ──▶ the window
-  (txt, md,       (read, cut,     (one SQLite     (find the     (ask the      (sources,
-   pdf)            embed, save)    file)           passages)     model)        chat, original)
+  (txt, md, pdf,  (read, cut,     (one SQLite     (find the     (ask the      (sources,
+   html, docx)     embed, save)    file)           passages)     model)        chat, original)
 ```
 
 You add a file. Scrinium reads its text, cuts it into passages, turns every passage into a list of numbers that stands for its meaning, and stores both. When you ask a question, the question is turned into numbers the same way and the closest passages are found. A chat model then writes an answer from those passages only, and every claim in it points back to a passage you can open.
@@ -22,7 +22,7 @@ Documents live in **workspaces**. A workspace is a folder with its own database,
 |---|---|---|---|
 | **Core** | Everything that is about *meaning*: what a document, a chunk and a citation are, how text is cut, how passages are found and ranked, how the prompt is written, how an answer is assembled. It talks to models only through two small interfaces, so it does not know which model server is behind them. | nothing | model interfaces only (Microsoft.Extensions.AI) |
 | **Storage** | Keeps documents, passages and their number lists in one SQLite file and searches them. The only part that knows how that file is laid out. | Core | SQLite |
-| **Extraction** | Gets plain text out of files: `.txt`, `.md` and `.pdf`. The only part that understands the PDF format. | Core | PdfPig |
+| **Extraction** | Gets plain text out of files: `.txt`, `.md`, `.pdf`, `.html` and `.docx`, turning HTML and Word into Markdown. The only part that understands these formats. | Core | PdfPig, HtmlAgilityPack, Open XML SDK |
 | **Ollama** | Connects Core to an Ollama server: the two model interfaces, a check of what is installed, and downloading models. The only part that knows about Ollama. | Core | OllamaSharp |
 | **Desktop** | The window: the document archive, the chat with its cited sources and the original preview side by side, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
 | **Server** | A small web application: a chat endpoint that streams the answer, a source preview, a document list behind a key, a health check and the chat page. Limits how often and how many at once a visitor can ask. | Core, Storage, Extraction, Ollama | ASP.NET Core |
@@ -35,7 +35,7 @@ A bot can sound right and be wrong, so the answers are measured. The evaluation 
 
 ## Rules the code follows
 
-- **One outside library per part.** SQLite lives only in Storage, PdfPig only in Extraction, OllamaSharp only in Ollama, Avalonia only in Desktop and ASP.NET Core only in Server. Replacing one touches one part.
+- **Every outside library in one part.** SQLite lives only in Storage, PdfPig, HtmlAgilityPack and the Open XML SDK only in Extraction, OllamaSharp only in Ollama, Avalonia only in Desktop and ASP.NET Core only in Server. Replacing one touches one part.
 - **Outcomes are named, not flagged.** A search does not return "found: true/false". It returns one of three things: *found* (with the passages), *nothing relevant* (with the closest document and how close it was) or *archive empty*. A test checks that Core has no yes/no properties.
 - **Nothing in Core changes after it is made.** Every Core value is read-only. A test checks that too.
 - **Expected failures are results, not crashes.** A PDF without text, a model server that is off, a cancelled answer: each is shown to the user as a message.

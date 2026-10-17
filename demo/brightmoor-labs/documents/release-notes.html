@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Brightmoor Sync Release Notes</title></head>
+<body>
+  <nav><a href="/docs">All docs</a></nav>
+  <main>
+    <h1>Brightmoor Sync Release Notes</h1>
+
+    <h2>4.2 (8 September 2026)</h2>
+    <ul>
+      <li>The default sync interval is now 15 minutes instead of 30 minutes.</li>
+      <li>New command <code>brightmoor logs --since</code> shows the log of a recent period, for example <code>--since 2h</code>.</li>
+      <li>Fixed: the agent no longer stops when a watched folder is on a network drive that briefly disconnects.</li>
+    </ul>
+
+    <h2>4.1 (2 June 2026)</h2>
+    <ul>
+      <li>The <code>--legacy-sync</code> flag has been removed. Workspaces that still used it move to the regular sync engine automatically.</li>
+      <li>Conflict copies are now kept for 30 days instead of 7 days.</li>
+    </ul>
+
+    <h2>4.0 (16 March 2026)</h2>
+    <ul>
+      <li>Node.js 18 and 20 are no longer supported; the agent needs Node.js 22 or later.</li>
+      <li>The configuration file is now TOML: <code>agent.yaml</code> is replaced by <code>agent.toml</code>, and <code>brightmoor config migrate</code> converts an old file.</li>
+    </ul>
+  </main>
+</body>
+</html>
