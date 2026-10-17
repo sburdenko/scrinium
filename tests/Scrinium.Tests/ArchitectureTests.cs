@@ -42,6 +42,14 @@ public sealed class ArchitectureTests
         AssertOnlyReferencedBy("UglyToad.PdfPig", Extraction);
 
     [Fact]
+    public void Only_Extraction_references_HtmlAgilityPack() =>
+        AssertOnlyReferencedBy("HtmlAgilityPack", Extraction);
+
+    [Fact]
+    public void Only_Extraction_references_OpenXml() =>
+        AssertOnlyReferencedBy("DocumentFormat.OpenXml", Extraction);
+
+    [Fact]
     public void Only_Desktop_references_Avalonia() =>
         AssertOnlyReferencedBy("Avalonia", Desktop);
 

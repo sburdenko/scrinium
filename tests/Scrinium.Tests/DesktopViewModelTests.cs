@@ -351,6 +351,24 @@ public sealed class ArchiveRowTests
     }
 
     [Fact]
+    public async Task An_html_page_shows_its_type()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        await harness.AddDocumentAsync("guide.html", "<html><body><h1>Guide</h1><p>Install the agent.</p></body></html>");
+
+        Assert.Equal("HTML · 1 chunk", Assert.Single(harness.Sources.Items).DetailText);
+    }
+
+    [Fact]
+    public async Task A_word_document_shows_its_type()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+        await harness.AddDocumentAsync("handbook.docx", new TestDocx().Heading(1, "Travel").Paragraph("Book trains first.").Build());
+
+        Assert.Equal("DOCX · 1 chunk", Assert.Single(harness.Sources.Items).DetailText);
+    }
+
+    [Fact]
     public async Task A_failed_document_offers_a_retry_and_shows_the_reason_instead_of_the_type()
     {
         using var harness = await DesktopHarness.CreateAsync();
@@ -631,6 +649,18 @@ public sealed class WorkspaceSwitchingTests
         Assert.Contains("at most 60 characters", harness.Main.WorkspaceError);
         Assert.True(harness.Main.IsNamingWorkspace);
         Assert.Single(harness.Main.Workspaces);
+    }
+
+    [Fact]
+    public async Task A_word_97_document_is_reported_with_the_reason_and_not_imported()
+    {
+        using var harness = await DesktopHarness.CreateAsync();
+
+        await harness.Sources.ImportPathsAsync([harness.App.WriteFile("old.doc", "x")]);
+
+        Assert.StartsWith("old.doc: ", harness.Sources.LastError);
+        Assert.Contains("Save it as .docx", harness.Sources.LastError);
+        Assert.Empty(await harness.Active.Scope.Library.ListAsync());
     }
 
     [Fact]

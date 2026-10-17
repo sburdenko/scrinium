@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="PdfPig" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <ProjectReference Include="..\Scrinium.Core\Scrinium.Core.csproj" />
   </ItemGroup>

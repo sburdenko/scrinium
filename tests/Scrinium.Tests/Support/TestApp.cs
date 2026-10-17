@@ -25,7 +25,7 @@ public sealed class TestApp : IDisposable
         Store = new SqliteStore(Paths.DatabasePath);
         Sessions = new SqliteSessionStore(Paths.DatabasePath);
 
-        ITextExtractor[] extractors = [new TextFileExtractor(), new PdfTextExtractor()];
+        var extractors = ExtractionServices.CreateExtractors();
         var chunker = new TextChunker(new ChunkingOptions(MaxTokens: 60, OverlapTokens: 8));
         Pipeline = new IngestionPipeline(Store, extractors, chunker, Embedder, Settings, Paths);
         Library = new DocumentLibrary(Store, Pipeline, Paths, TimeProvider.System);

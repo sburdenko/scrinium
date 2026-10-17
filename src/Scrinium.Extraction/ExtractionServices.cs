@@ -5,10 +5,14 @@ namespace Scrinium.Extraction;
 
 public static class ExtractionServices
 {
+    /// <summary>One reader per supported document kind.</summary>
+    public static IReadOnlyList<ITextExtractor> CreateExtractors() =>
+        [new TextFileExtractor(), new PdfTextExtractor(), new HtmlTextExtractor(), new DocxTextExtractor()];
+
     public static IServiceCollection AddScriniumTextExtractors(this IServiceCollection services)
     {
-        services.AddSingleton<ITextExtractor, TextFileExtractor>();
-        services.AddSingleton<ITextExtractor, PdfTextExtractor>();
+        foreach (var extractor in CreateExtractors())
+            services.AddSingleton(extractor);
         return services;
     }
 }

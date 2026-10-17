@@ -15,6 +15,8 @@ public sealed partial class SourceItemViewModel(Document document, string curren
     {
         DocumentKind.Pdf => "PDF",
         DocumentKind.Markdown => "MD",
+        DocumentKind.Html => "HTML",
+        DocumentKind.Docx => "DOCX",
         _ => "TXT"
     };
 

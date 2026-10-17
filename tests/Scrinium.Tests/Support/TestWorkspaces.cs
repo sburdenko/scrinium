@@ -18,7 +18,7 @@ public sealed class TestWorkspaces
         Chat = chat ?? new FakeChatClient("ответ");
         Settings = settings ?? new SettingsService(Path.Combine(root, "settings.json"));
         Catalog = new WorkspaceCatalog(Path.Combine(root, "workspace-data"));
-        ITextExtractor[] extractors = [new TextFileExtractor(), new PdfTextExtractor()];
+        var extractors = ExtractionServices.CreateExtractors();
         Factory = new WorkspaceScopeFactory(
             Catalog,
             new SqliteWorkspaceStoreFactory(),

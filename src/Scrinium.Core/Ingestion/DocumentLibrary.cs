@@ -23,8 +23,12 @@ public sealed class DocumentLibrary(
 
     public async Task<Document> ImportAsync(string sourcePath, CancellationToken ct = default)
     {
-        var kind = DocumentKinds.FromPath(sourcePath)
-            ?? throw new NotSupportedException($"Unsupported format: {Path.GetExtension(sourcePath)}");
+        var kind = DocumentKinds.Check(sourcePath) switch
+        {
+            FileSupport.Supported supported => supported.Kind,
+            FileSupport.Unsupported unsupported => throw new NotSupportedException(unsupported.Reason),
+            _ => throw new NotSupportedException(DocumentKinds.UnknownFormat)
+        };
 
         var id = Guid.NewGuid();
         var fileDate = DateOnly.FromDateTime(File.GetLastWriteTime(sourcePath));

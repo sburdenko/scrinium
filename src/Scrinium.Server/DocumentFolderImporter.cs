@@ -29,8 +29,14 @@ public sealed class DocumentFolderImporter(
 
         var library = served.Scope.Library;
         var known = (await library.ListAsync(ct)).Select(d => d.Title).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var file in Directory.EnumerateFiles(folder).Where(DocumentKinds.IsSupported).Order())
+        foreach (var file in Directory.EnumerateFiles(folder).Order())
         {
+            if (DocumentKinds.Check(file) is FileSupport.Unsupported unsupported)
+            {
+                logger.LogInformation("Skipped {File} in workspace {Workspace}: {Reason}", Path.GetFileName(file), workspace, unsupported.Reason);
+                continue;
+            }
+
             if (known.Contains(Path.GetFileName(file)))
                 continue;
 

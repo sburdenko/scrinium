@@ -54,9 +54,9 @@ public sealed partial class SourcesViewModel : ObservableObject, IDisposable
         var errors = new List<string>();
         foreach (var path in paths)
         {
-            if (!DocumentKinds.IsSupported(path))
+            if (DocumentKinds.Check(path) is FileSupport.Unsupported unsupported)
             {
-                errors.Add($"{Path.GetFileName(path)}: unsupported format (txt, md and pdf only for now)");
+                errors.Add($"{Path.GetFileName(path)}: {unsupported.Reason}");
                 continue;
             }
 
