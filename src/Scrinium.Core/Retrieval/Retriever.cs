@@ -59,7 +59,8 @@ public sealed class Retriever(
                 promptText,
                 chunkText,
                 chunkOffset,
-                hit.Chunk.Section));
+                hit.Chunk.Section,
+                hit.Chunk.Content));
         }
 
         return fragments;

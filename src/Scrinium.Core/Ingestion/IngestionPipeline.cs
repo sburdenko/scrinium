@@ -67,7 +67,7 @@ public sealed class IngestionPipeline(
 
         return drafts
             .Select((draft, index) => new EmbeddedChunk(
-                new Chunk(Guid.NewGuid(), document.Id, index, draft.Page, draft.Offset, draft.Text, document.FileDate, draft.TokenCount, draft.Section),
+                new Chunk(Guid.NewGuid(), document.Id, index, draft.Page, draft.Offset, draft.Text, document.FileDate, draft.TokenCount, draft.Section, draft.Content),
                 vectors[index]))
             .ToList();
     }

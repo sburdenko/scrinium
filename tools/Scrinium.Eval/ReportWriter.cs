@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Scrinium.Core.Chunking;
 
 namespace Scrinium.Eval;
 
@@ -9,7 +10,10 @@ public sealed record EvaluationRun(
     string ChatModel,
     string EmbeddingModel,
     int DocumentCount,
-    IReadOnlyList<CaseResult> Results);
+    IReadOnlyList<CaseResult> Results)
+{
+    public ChunkingOptions Chunking { get; init; } = new();
+}
 
 public static class ReportWriter
 {
@@ -23,6 +27,7 @@ public static class ReportWriter
         report.AppendLine($"- Chat model: `{run.ChatModel}`");
         report.AppendLine($"- Embedding model: `{run.EmbeddingModel}`");
         report.AppendLine($"- Documents: {run.DocumentCount}");
+        report.AppendLine($"- Chunking: {Describe(run.Chunking)}");
         report.AppendLine().AppendLine("## Summary").AppendLine();
         report.AppendLine("| Measure | Result |").AppendLine("|---|---|");
         report.AppendLine($"| Cases passed | {Ratio(summary.Passed, summary.Total)} |");
@@ -83,4 +88,11 @@ public static class ReportWriter
         whole == 0 ? "n/a" : $"{part} / {whole} ({100.0 * part / whole:0} %)".Replace(',', '.');
 
     private static string Escape(string text) => text.Replace("|", "\\|").ReplaceLineEndings(" ");
+
+    private static string Describe(ChunkingOptions chunking)
+    {
+        var code = chunking.CodeBlocks == CodeBlocks.OwnChunks ? "code blocks in their own chunks" : "code blocks with text";
+        var sections = chunking.SectionPaths == SectionPaths.Prepend ? "section paths prepended" : "section paths omitted";
+        return $"{code}, {sections}";
+    }
 }

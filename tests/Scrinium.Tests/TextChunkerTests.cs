@@ -172,11 +172,77 @@ public class TextChunkerTests
     [Fact]
     public void Embedding_text_puts_the_section_before_the_chunk_text()
     {
-        var withSection = new ChunkDraft(null, 0, "Цена 10 евро.", 4, "Тарифы › Бизнес");
-        var withoutSection = new ChunkDraft(null, 0, "Цена 10 евро.", 4, "");
+        var withSection = new ChunkDraft(null, 0, "Цена 10 евро.", 4, "Тарифы › Бизнес", ChunkContent.Prose);
+        var withoutSection = new ChunkDraft(null, 0, "Цена 10 евро.", 4, "", ChunkContent.Prose);
 
         Assert.Equal("Тарифы › Бизнес\n\nЦена 10 евро.", withSection.EmbeddingText);
         Assert.Equal("Цена 10 евро.", withoutSection.EmbeddingText);
+    }
+
+    private const string Install = "# Install\n\nRun the installer:\n\n```bash\nnpm install -g @brightmoor/cli\n```\n\nThen sign in.";
+
+    [Fact]
+    public void A_code_block_becomes_a_chunk_of_its_own()
+    {
+        var chunks = _chunker.Chunk([new TextSegment(null, Install)]);
+
+        Assert.Equal(
+            [("# Install\n\nRun the installer:", ChunkContent.Prose), ("```bash\nnpm install -g @brightmoor/cli\n```", ChunkContent.Code), ("Then sign in.", ChunkContent.Prose)],
+            chunks.Select(c => (c.Text, c.Content)));
+    }
+
+    [Fact]
+    public void A_code_chunk_keeps_its_place_and_its_section()
+    {
+        var code = Assert.Single(_chunker.Chunk([new TextSegment(null, Install)]), c => c.Content == ChunkContent.Code);
+
+        Assert.Equal(code.Text, Install.Substring(code.Offset, code.Text.Length));
+        Assert.Equal("Install", code.Section);
+    }
+
+    [Fact]
+    public void A_long_code_block_is_split_only_into_code_chunks_and_never_at_comment_lines_taken_for_headings()
+    {
+        var lines = string.Join("\n", Enumerable.Range(1, 60).Select(i => i % 5 == 0 ? $"# step {i}" : $"brightmoor job run --id {i} --wait"));
+        var text = $"Intro.\n\n```bash\n{lines}\n```";
+
+        var chunks = WithoutOverlap.Chunk([new TextSegment(null, text)]);
+
+        var code = chunks.Where(c => c.Content == ChunkContent.Code).ToList();
+        Assert.True(code.Count > 1);
+        Assert.Equal("Intro.", Assert.Single(chunks, c => c.Content == ChunkContent.Prose).Text);
+        Assert.All(code, c => Assert.Equal("", c.Section));
+    }
+
+    [Fact]
+    public void An_unclosed_fence_runs_to_the_end_as_code()
+    {
+        var chunks = _chunker.Chunk([new TextSegment(null, "Intro.\n\n```\nmake run")]);
+
+        Assert.Equal(ChunkContent.Code, chunks[^1].Content);
+        Assert.Equal("```\nmake run", chunks[^1].Text);
+    }
+
+    [Fact]
+    public void Code_can_stay_with_its_text_when_chunking_is_told_so()
+    {
+        var mixed = new TextChunker(new ChunkingOptions(MaxTokens: 100, OverlapTokens: 15, CodeBlocks: CodeBlocks.WithText));
+
+        var chunk = Assert.Single(mixed.Chunk([new TextSegment(null, Install)]));
+
+        Assert.Equal(Install, chunk.Text);
+        Assert.Equal(ChunkContent.Prose, chunk.Content);
+    }
+
+    [Fact]
+    public void Section_paths_can_be_left_out_when_chunking_is_told_so()
+    {
+        var plain = new TextChunker(new ChunkingOptions(MaxTokens: 100, OverlapTokens: 0, SectionPaths: SectionPaths.Omit));
+
+        var chunks = plain.Chunk([new TextSegment(null, $"# Тарифы\n{Section("тарифы")}")]);
+
+        Assert.True(chunks.Count > 2);
+        Assert.All(chunks, c => Assert.Equal("", c.Section));
     }
 
     [Fact]

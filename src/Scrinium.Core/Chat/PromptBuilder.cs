@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.AI;
+using Scrinium.Core.Documents;
 using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Core.Chat;
@@ -79,6 +80,9 @@ public static class PromptBuilder
 
             if (fragment.Section.Length > 0)
                 builder.Append(" section=\"").Append(Attribute(fragment.Section)).Append('"');
+
+            if (fragment.Content == ChunkContent.Code)
+                builder.Append(" kind=\"code\"");
 
             builder.AppendLine(">")
                 .AppendLine(Neutralize(fragment.PromptText))

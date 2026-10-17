@@ -1,3 +1,7 @@
 namespace Scrinium.Core.Chunking;
 
-public sealed record ChunkingOptions(int MaxTokens = 400, int OverlapTokens = 50);
+public sealed record ChunkingOptions(
+    int MaxTokens = 400,
+    int OverlapTokens = 50,
+    CodeBlocks CodeBlocks = CodeBlocks.OwnChunks,
+    SectionPaths SectionPaths = SectionPaths.Prepend);
