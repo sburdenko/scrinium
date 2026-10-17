@@ -130,6 +130,19 @@ public sealed class RetrieverTests : IDisposable
         Assert.Equal(text, Assert.Single(found.Fragments).PromptText);
     }
 
+    [Fact]
+    public async Task A_fragment_carries_the_section_of_its_chunk()
+    {
+        var app = NewApp();
+        var filler = string.Join(" ", Enumerable.Range(1, 30).Select(i => $"Line {i} describes the plan in general terms."));
+        await app.ImportAndProcessAsync(app.WriteFile("prices.md",
+            $"# Prices\n{filler} The walrus discount is ten percent for annual billing."));
+
+        var outcome = await app.Retriever.RetrieveAsync("walrus discount annual billing");
+
+        Assert.Equal("Prices", Assert.IsType<RetrievalOutcome.Found>(outcome).Fragments[0].Section);
+    }
+
     private static string LongNote()
     {
         var sentences = Enumerable.Range(1, 40).Select(i => $"Sentence number {i} talks about topic {i} in some detail here.");

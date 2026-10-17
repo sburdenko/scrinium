@@ -131,4 +131,38 @@ public sealed class SqliteStoreTests : IDisposable
 
         Assert.Equal("new", Assert.Single(hits).Chunk.Text);
     }
+
+    [Fact]
+    public async Task Chunk_section_survives_storage()
+    {
+        var doc = NewDocument();
+        await _store.AddAsync(doc);
+        var chunk = new Chunk(Guid.NewGuid(), doc.Id, 0, null, 0, "Цена 10 евро.", doc.FileDate, 4, "Тарифы › Бизнес");
+        await _store.ReplaceChunksAsync(doc.Id, [new EmbeddedChunk(chunk, [1, 0])], "m");
+
+        Assert.Equal("Тарифы › Бизнес", Assert.Single(await _store.GetChunkRangeAsync(doc.Id, 0, 0)).Section);
+        Assert.Equal("Тарифы › Бизнес", Assert.Single(await _store.SearchAsync([1, 0], "m", 5)).Chunk.Section);
+    }
+
+    [Fact]
+    public async Task A_database_from_before_sections_keeps_its_chunks_with_no_section()
+    {
+        var path = Path.Combine(_temp.Path, "old.db");
+        var doc = NewDocument();
+        var old = new SqliteStore(path);
+        await old.AddAsync(doc);
+        await old.ReplaceChunksAsync(doc.Id, [NewChunk(doc, 0, "kept", 1, 0)], "m");
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            connection.Open();
+            using var downgrade = connection.CreateCommand();
+            downgrade.CommandText = "ALTER TABLE chunks DROP COLUMN section; PRAGMA user_version = 2;";
+            downgrade.ExecuteNonQuery();
+        }
+
+        var hit = Assert.Single(await new SqliteStore(path).SearchAsync([1, 0], "m", 5));
+
+        Assert.Equal("kept", hit.Chunk.Text);
+        Assert.Equal("", hit.Chunk.Section);
+    }
 }

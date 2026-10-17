@@ -22,6 +22,23 @@ public sealed class IngestionTests : IDisposable
         Assert.Equal(DocumentKind.Markdown, document.Kind);
     }
 
+    private static string LongSection(string topic) =>
+        string.Join(" ", Enumerable.Range(1, 30).Select(i => $"Line {i} is about {topic}."));
+
+    [Fact]
+    public async Task Chunks_are_embedded_with_their_section_and_stored_with_it()
+    {
+        var path = _app.WriteFile("prices.md", $"# Prices\n## Business\n{LongSection("business plans")}");
+
+        var document = await _app.ImportAndProcessAsync(path);
+
+        var chunks = await _app.Store.GetChunkRangeAsync(document.Id, 0, int.MaxValue);
+        Assert.True(chunks.Count > 2);
+        Assert.Equal("Prices › Business", chunks[^1].Section);
+        Assert.Contains($"Prices › Business\n\n{chunks[^1].Text}", _app.Embedder.Inputs);
+        Assert.DoesNotContain(chunks[^1].Text, _app.Embedder.Inputs);
+    }
+
     [Fact]
     public async Task Import_copies_original_into_data_folder()
     {

@@ -58,7 +58,8 @@ public sealed class Retriever(
                 ToCitation(fragments.Count + 1, hit, passages[hit.Chunk.Id]),
                 promptText,
                 chunkText,
-                chunkOffset));
+                chunkOffset,
+                hit.Chunk.Section));
         }
 
         return fragments;

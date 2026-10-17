@@ -4,7 +4,7 @@ namespace Scrinium.Storage;
 
 internal static class SqliteSchema
 {
-    private const int Version = 2;
+    private const int Version = 3;
 
     public static void Apply(SqliteConnection connection)
     {
@@ -25,6 +25,8 @@ internal static class SqliteSchema
             Execute(connection, transaction, DocumentsAndChunks);
         if (current < 2)
             Execute(connection, transaction, Sessions);
+        if (current < 3)
+            Execute(connection, transaction, ChunkContext);
 
         Execute(connection, transaction, $"PRAGMA user_version = {Version};");
         transaction.Commit();
@@ -63,6 +65,10 @@ internal static class SqliteSchema
             embedding BLOB NOT NULL
         );
         CREATE INDEX IF NOT EXISTS ix_chunks_document ON chunks(document_id, ordinal);
+        """;
+
+    private const string ChunkContext = """
+        ALTER TABLE chunks ADD COLUMN section TEXT NOT NULL DEFAULT '';
         """;
 
     private const string Sessions = """

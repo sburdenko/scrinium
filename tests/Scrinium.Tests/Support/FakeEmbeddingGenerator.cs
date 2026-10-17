@@ -10,6 +10,8 @@ public sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embeddi
 
     public int Texts { get; private set; }
 
+    public List<string> Inputs { get; } = [];
+
     public Exception? FailWith { get; set; }
 
     public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
@@ -20,6 +22,7 @@ public sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embeddi
         Calls++;
         var list = values.ToList();
         Texts += list.Count;
+        Inputs.AddRange(list);
         if (FailWith is not null)
             throw FailWith;
 
