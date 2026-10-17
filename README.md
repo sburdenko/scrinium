@@ -7,7 +7,7 @@
 
 **Ask your own documents questions in plain language and get answers you can verify.**
 
-Scrinium is a desktop app that indexes your text, Markdown and PDF files and answers questions about them with a local language model. Every claim in an answer carries a numbered citation; a click opens the original, scrolled to the exact sentence the answer came from.
+Scrinium is a desktop app that indexes your text, Markdown, PDF, HTML and Word files and answers questions about them with a local language model. Every claim in an answer carries a numbered citation; a click opens the original, scrolled to the exact sentence the answer came from.
 
 Everything runs on your machine through [Ollama](https://ollama.com). Your documents, the index and the models stay local. The only network connection the app makes is the one to your own Ollama server.
 
@@ -23,10 +23,10 @@ The screenshots show the desktop app on the [Kestrel Analytics demo documents](d
 - **Local and provider-agnostic.** The core talks to models only through `IChatClient` and `IEmbeddingGenerator` from Microsoft.Extensions.AI, so the model server is a composition detail.
 - **Visible state.** Each document shows whether it is queued, indexing, ready or failed (with the reason and a retry). A banner says when Ollama is not running or a model is missing, and can start Ollama and download the models.
 - **Documents are data, not instructions.** Text from a file reaches the model inside markers with a standing order not to obey it.
-- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; three fictional demo companies with 117 questions ship with committed reports, including the failures, and one of them is a held-out set nothing is tuned on.
+- **Measured quality.** A question set with expected facts, sources and refusals runs against the real models and writes a report; four fictional demo companies with 160 questions ship with committed reports, including the failures, and one of them is a held-out set nothing is tuned on.
 - **Workspaces that cannot see each other.** Each workspace is a folder with its own database, originals and saved sessions, so "Work" never answers from "Personal", and one server can serve several companies.
 - **Desktop app and HTTP server on one core.** The same indexing, search and answering run behind an Avalonia window and behind a small ASP.NET Core API with a chat page.
-- **Small, enforced architecture.** Six projects, one outside library each, and tests that fail when a dependency points the wrong way.
+- **Small, enforced architecture.** Six projects, every outside library in exactly one of them, and tests that fail when a dependency points the wrong way.
 
 ## Quick start
 
@@ -38,7 +38,7 @@ ollama pull qwen3-coder:30b   # answers; any instruct model works
 dotnet run --project src/Scrinium.Desktop
 ```
 
-Then press **Add files** or drop `.txt`, `.md` and `.pdf` files on the window, wait until each row in the archive shows its type and chunk count, and ask.
+Then press **Add files** or drop `.txt`, `.md`, `.pdf`, `.html` and `.docx` files on the window, wait until each row in the archive shows its type and chunk count, and ask.
 
 If Ollama is not running or a model is missing, the banner at the top offers **Start Ollama** and **Download models**.
 
@@ -140,11 +140,12 @@ The page is served with a content security policy and renders answers as plain t
 
 ## Quality evaluation
 
-`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships three fictional companies:
+`tools/Scrinium.Eval` checks the whole pipeline against a question set, with the real models, and writes a Markdown report. The repository ships four fictional companies:
 
 - [`demo/steuerberatung-mueller`](demo/steuerberatung-mueller), a German tax office: six documents (five Markdown files and a PDF) and 35 questions in German, English and Russian.
 - [`demo/kestrel-analytics`](demo/kestrel-analytics), an English-language analytics vendor written to break the first set: contradicting and superseded documents, tables, a prompt injection inside a document, German questions about English documents, and 14 follow-up questions that only make sense with the chat history.
 - [`demo/velo-nord`](demo/velo-nord), a bicycle workshop in English and German with 32 questions. It is the **held-out set**: it was written after the rules below were tuned on the first two sets, and nothing is tuned on it. Its numbers are the honest estimate of how the app does on documents it was not shaped for.
+- [`demo/brightmoor-labs`](demo/brightmoor-labs), a software vendor with 43 questions about formats other than Markdown: HTML pages with navigation, scripts and a footer that hold wrong values, Word documents with heading styles, lists, a table, a tracked change and code set in Consolas, fenced code examples, and long sections whose facts sit far from the heading that names them. The Word files are written by [`build-documents.cs`](demo/brightmoor-labs/build-documents.cs).
 
 ```bash
 dotnet run --project tools/Scrinium.Eval -c Release -- \
@@ -248,9 +249,9 @@ flowchart TD
 ```mermaid
 flowchart LR
     A[File added] --> B[Original copied<br/>into the data folder]
-    B --> C[Text extracted<br/>per page for PDF]
+    B --> C[Text extracted<br/>HTML and Word as Markdown]
     C --> D[Cut into chunks<br/>headings, paragraphs, sentences]
-    D --> E[Embedded<br/>in batches of 32]
+    D --> E[Embedded with<br/>their section path]
     E --> F[(One SQLite transaction<br/>chunks, vectors, state)]
 ```
 
@@ -276,7 +277,7 @@ flowchart TB
     Server["<b>Scrinium.Server</b><br/>ASP.NET Core API · chat page"]
     Ollama["<b>Scrinium.Ollama</b><br/>Ollama client · status · model pull"]
     Storage["<b>Scrinium.Storage</b><br/>SQLite document and vector store"]
-    Extraction["<b>Scrinium.Extraction</b><br/>text and PDF extractors"]
+    Extraction["<b>Scrinium.Extraction</b><br/>text, PDF, HTML and Word extractors"]
     Core["<b>Scrinium.Core</b><br/>chunking · ingestion · retrieval · prompt · answering"]
 
     Desktop --> Ollama
@@ -294,7 +295,7 @@ flowchart TB
 |---|---|---|
 | `Scrinium.Core` | Records and interfaces, workspaces, chunking, the ingestion queue, retrieval, passage location, prompt building, answering. Depends on nothing else in the solution | Microsoft.Extensions.AI (interfaces only) |
 | `Scrinium.Storage` | Implements the document and vector stores on one SQLite file | Microsoft.Data.Sqlite |
-| `Scrinium.Extraction` | Reads text from `.txt`, `.md` and `.pdf` | PdfPig |
+| `Scrinium.Extraction` | Reads text from `.txt`, `.md`, `.pdf`, `.html` and `.docx` | PdfPig, HtmlAgilityPack, Open XML SDK |
 | `Scrinium.Ollama` | Ollama client registration, status check, model pull | OllamaSharp |
 | `Scrinium.Desktop` | One window with the archive, the chat and the original preview; settings; Ollama status banner. The only project that knows about the UI toolkit | Avalonia |
 | `Scrinium.Server` | Chat, source preview, document list and health endpoints, the chat page, limits | ASP.NET Core |
@@ -305,7 +306,7 @@ flowchart TB
 These are checked by `ArchitectureTests` on every build, not left to review:
 
 - Core references no other project in the solution; Storage, Extraction and Ollama reference only Core; Desktop and Server compose them.
-- SQLite, PdfPig, OllamaSharp, Avalonia and ASP.NET Core each appear in exactly one project, so replacing one touches one project.
+- SQLite, PdfPig, HtmlAgilityPack, the Open XML SDK, OllamaSharp, Avalonia and ASP.NET Core each appear in exactly one project, so replacing one touches one project.
 - Core models outcomes as states (`IndexState`, `RetrievalOutcome`, `ModelCatalog`, `AnswerEvent`) and has no boolean flags.
 - Core values are immutable.
 
@@ -315,8 +316,8 @@ These are checked by `ArchitectureTests` on every build, not left to review:
 
 | Step | Behaviour |
 |---|---|
-| Extraction | `.txt` and `.md` read as UTF-8. PDFs are read page by page with PdfPig; a PDF without a text layer fails with a clear message |
-| Chunking | Recursive: headings, blank lines, sentences, words. About 400 tokens per chunk with 50 tokens of overlap. Every chunk keeps its page and character offset |
+| Extraction | `.txt` and `.md` read as UTF-8. PDFs are read page by page with PdfPig; a PDF without a text layer fails with a clear message. HTML pages become Markdown without scripts, styles, navigation and footers, preferring `<main>`. Word documents become Markdown from their heading styles, numbering, tables and code styles or monospace fonts; deleted revisions are left out. Word 97-2003 `.doc` files are refused with a request to save them as `.docx` |
+| Chunking | Recursive: headings, blank lines, sentences, words. About 400 tokens per chunk with 50 tokens of overlap that starts at a sentence. Fenced code blocks become chunks of their own, marked as code. Every chunk keeps its page, character offset and the path of the headings above it, which goes into its embedding and into the prompt |
 | Embeddings | Batches of 32 through `IEmbeddingGenerator`. The model name is stored per document, and search only uses documents indexed with the current model |
 | Storage | One SQLite file. Vectors are normalized `float32` blobs compared by cosine similarity. Finished exchanges are saved per session with their citations; failed answers are not saved |
 | Retrieval | Top 6 chunks, similarity at least 0.35 and within 0.10 of the best. Neighbouring chunks are added to the context up to about 3000 tokens |
@@ -358,7 +359,7 @@ It publishes a self-contained build into `dist/Scrinium.app`, signs it ad hoc an
 src/
   Scrinium.Core/         records, chunking, ingestion, retrieval, prompt, answering
   Scrinium.Storage/      SQLite stores
-  Scrinium.Extraction/   text and PDF extractors
+  Scrinium.Extraction/   text, PDF, HTML and Word extractors
   Scrinium.Ollama/       Ollama client, status, model pull
   Scrinium.Desktop/      Avalonia app
   Scrinium.Server/       ASP.NET Core API and chat page
@@ -369,6 +370,7 @@ demo/
   steuerberatung-mueller/  fictional German tax office: documents, questions, reports
   kestrel-analytics/       fictional analytics vendor, a harder set: conflicts, tables, injection, follow-ups
   velo-nord/               fictional bicycle workshop, the held-out set nothing is tuned on
+  brightmoor-labs/         fictional software vendor: HTML, Word, code and long sections
 tests/
   Scrinium.Tests/        unit, architecture, composition and server tests
   Scrinium.UiTests/      headless tests of the desktop window

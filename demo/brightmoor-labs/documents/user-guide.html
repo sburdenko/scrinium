@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Brightmoor Sync User Guide</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 52rem; margin: auto; }
+    .promo { background: #ffeb3b; padding: 1rem; }
+    pre { background: #f4f4f4; padding: 0.75rem; }
+  </style>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    var trialDays = 99;
+    function showPromo() { document.querySelector('.promo').textContent = 'Free trial: ' + trialDays + ' days'; }
+  </script>
+</head>
+<body onload="showPromo()">
+  <header class="site-header">
+    <a href="/" class="logo">Brightmoor Labs</a>
+    <nav>
+      <a href="/product">Product</a> <a href="/pricing">Pricing</a> <a href="/docs">Docs</a> <a href="/careers">Careers</a>
+    </nav>
+  </header>
+  <div class="promo"></div>
+  <main>
+    <article>
+      <h1>Brightmoor Sync User Guide</h1>
+      <p>Brightmoor Sync keeps folders on your own servers and buckets in the cloud in step. A small agent runs next to your data, watches for changes and moves them in both directions. This guide covers installation, configuration and the most common errors.</p>
+
+      <h2>Installation</h2>
+      <p>The agent runs on Linux, macOS and Windows Server. Before you start, make sure the machine meets these requirements:</p>
+      <ul>
+        <li>Node.js 22 or later</li>
+        <li>At least 2 GB of free disk space for the change journal</li>
+        <li>Outbound HTTPS on port 443 to <code>api.brightmoor.dev</code></li>
+      </ul>
+      <p>Install the command line tool from npm:</p>
+      <pre><code class="language-bash">npm install -g @brightmoor/cli@4
+</code></pre>
+      <p>Then link the machine to your workspace and start the agent:</p>
+      <pre><code class="language-bash">brightmoor login --workspace &lt;workspace-id&gt;
+brightmoor agent start
+</code></pre>
+      <p>The agent registers itself as a system service, so it starts again after a reboot.</p>
+
+      <h2>Configuration</h2>
+      <p>All settings live in one file, <code>~/.brightmoor/agent.toml</code>. The agent reads it at start and again whenever the file changes, so you do not have to restart anything after an edit. Settings you leave out keep their defaults.</p>
+
+      <h3>Sync schedule</h3>
+      <p>The agent does not copy every change the moment it happens. It collects changes in a journal and works through them in rounds. Each round starts with a scan of the watched folders, compares what it finds with the journal, and then uploads and downloads whatever differs. Grouping work this way keeps the number of requests low and lets the agent skip files that change several times in quick succession, such as documents that an editor saves every few seconds.</p>
+      <p>How long a round takes depends on the number of files rather than their size. A folder with a few hundred large videos is scanned in seconds, while a folder with a million small log files can take several minutes. If a round is still running when the next one is due, the agent does not start a second round in parallel; it waits until the first one has finished and then starts immediately. You can see the length of the last rounds with <code>brightmoor status</code>.</p>
+      <p>Quiet hours let you keep the network free during the working day. Inside quiet hours the agent still scans and records changes, but it moves no data. Outside quiet hours it catches up. Quiet hours are set as a list of time ranges in the local time of the machine, and they may cross midnight.</p>
+      <p>Large first syncs are a special case. When you connect a folder that already holds many files, the first round uploads all of them and can run for hours. The agent shows its progress in <code>brightmoor status</code> and can be stopped and started again at any time; it continues where it left off instead of starting over, because the journal records every file that has been transferred.</p>
+      <p>Rounds are also triggered by events. When the operating system reports a change in a watched folder, the agent notes it in the journal at once, so that the next round does not have to find it by scanning. On network drives such events are not reliable, which is why the agent always scans as well, and why rounds on network drives take longer.</p>
+      <p>The time between two rounds is called the interval. If you set nothing, the agent runs every 15 minutes. The shortest interval it accepts is 5 minutes; lower values are rounded up, and the agent writes a warning to its log when it does so.</p>
+      <pre><code class="language-toml">[schedule]
+interval = "15m"
+quiet_hours = ["08:00-18:00"]
+</code></pre>
+
+      <h3>Conflict handling</h3>
+      <p>A conflict happens when the same file changed on both sides between two rounds. This is rarer than it sounds, because most teams work in either the local folder or the bucket, not both, but it does happen when a script in the cloud rewrites a file that someone is also editing on a server. The agent never asks you to choose in the moment, because it usually runs on a machine where nobody is watching.</p>
+      <p>To decide, the agent compares the modification times that both sides report. Clocks on servers and in storage services drift, so the agent allows for a tolerance of two seconds; changes closer together than that are treated as simultaneous, and then the side with the larger file is taken as the newer one. Folders are never in conflict as such: if a folder was renamed on one side and filled with new files on the other, the agent applies both changes.</p>
+      <p>Deletions are handled carefully as well. A file that was deleted on one side and changed on the other is restored, because losing a change is worse than keeping a file that someone wanted gone. The restore is recorded in the log with the path and both timestamps, so you can find out later who did what.</p>
+      <p>Some file types are never merged or compared by content. Office documents, images and archives are treated as a whole: either one version is kept or the other. Plain text files are treated the same way, even though a merge would sometimes be possible, because a merge that goes wrong is harder to notice than a conflict copy.</p>
+      <p>If you see many conflicts, look for two processes writing to the same files. A common cause is a backup tool that touches the modification time of every file it reads. Excluding the watched folder from that tool, or switching it to read-only access, usually ends the conflicts.</p>
+      <p>When both sides changed, the most recent change wins. The losing copy is not deleted: it is moved to the <code>.brightmoor/conflicts</code> folder next to the watched folder and kept there for 30 days before it is purged.</p>
+
+      <h3>Bandwidth limits</h3>
+      <p>Set <code>upload_limit</code> and <code>download_limit</code> in megabits per second to keep the agent from filling the line. Both are unlimited by default, and the value 0 also means unlimited.</p>
+
+      <h2>Troubleshooting</h2>
+      <p>The agent writes its log to <code>~/.brightmoor/logs</code> and keeps it for 14 days. Most problems show up there as an error code:</p>
+      <table>
+        <thead><tr><th>Error code</th><th>Meaning</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>E401</td><td>The API key has expired or was revoked</td><td>Run <code>brightmoor login</code> again</td></tr>
+          <tr><td>E429</td><td>The workspace hit its rate limit</td><td>Nothing; the agent waits and retries</td></tr>
+          <tr><td>E507</td><td>The destination disk is full</td><td>Free space or move the watched folder</td></tr>
+        </tbody>
+      </table>
+    </article>
+  </main>
+  <footer>
+    <p>Support hotline +49 40 1111 0000 (Mon-Fri 9-17). © 2019 Brightmoor Labs GmbH, Hafenstraße 4, Hamburg.</p>
+  </footer>
+</body>
+</html>
