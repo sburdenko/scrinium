@@ -166,16 +166,20 @@ Every question states what a correct answer must contain, which document it must
 | forbidden | the answer does not contain a value the documents mark as outdated or injected |
 | language | the answer is in the language of the question (skipped for very short answers) |
 
-Results with `bge-m3` for embeddings, on 13 October and after the answer-quality work on 16 October:
+Results with `bge-m3` for embeddings, run on 19 October with nothing else using Ollama. The runs of 13 and 16 October are in the same `reports` folders.
 
 | Set | Chat model | Cases passed | Right sentence highlighted | Refused when it should | Median answer time |
 |---|---|---|---|---|---|
-| Steuerberatung Müller (35) | `gemma3:12b` | 28 → **35** / 35 | 25 → **30** / 30 | 3 → **5** / 5 | 7.3 → 10.0 s |
-| Steuerberatung Müller (35) | `qwen3-coder:30b` | 29 → **34** / 35 | 24 → **29** / 30 | 5 → **5** / 5 | 2.8 → 3.7 s |
-| Kestrel Analytics (50) | `gemma3:12b` | 39 → **47** / 50 | 36 → **42** / 44 | 3 → **5** / 6 | 15.0 → 22.7 s |
-| Kestrel Analytics (50) | `qwen3-coder:30b` | 42 → **49** / 50 | 37 → **43** / 44 | 5 → **6** / 6 | 5.3 → 8.8 s |
-| Velo Nord, held out (32) | `gemma3:12b` | **28** / 32 | **24** / 27 | **4** / 5 | 11.2 s |
-| Velo Nord, held out (32) | `qwen3-coder:30b` | **26** / 32 | **21** / 27 | **5** / 5 | 3.3 s |
+| Steuerberatung Müller (35) | `gemma3:12b` | 35 / 35 | 30 / 30 | 5 / 5 | 8.1 s |
+| Steuerberatung Müller (35) | `qwen3-coder:30b` | 35 / 35 | 30 / 30 | 5 / 5 | 2.4 s |
+| Kestrel Analytics (50) | `gemma3:12b` | 48 / 50 | 42 / 44 | 6 / 6 | 17.8 s |
+| Kestrel Analytics (50) | `qwen3-coder:30b` | 49 / 50 | 43 / 44 | 6 / 6 | 5.3 s |
+| Velo Nord, held out (32) | `gemma3:12b` | 28 / 32 | 24 / 27 | 4 / 5 | 9.8 s |
+| Velo Nord, held out (32) | `qwen3-coder:30b` | 26 / 32 | 21 / 27 | 5 / 5 | 2.5 s |
+| Brightmoor Labs (43) | `gemma3:12b` | 41 / 43 | 37 / 39 | 4 / 4 | 10.9 s |
+| Brightmoor Labs (43) | `qwen3-coder:30b` | 41 / 43 | 37 / 39 | 4 / 4 | 4.3 s |
+
+Of the 17 failing runs on 19 October, 16 highlight a sentence that does not hold the expected fact; four of them also miss a fact or cite the wrong document. The remaining run answered a question the documents cannot answer. No run repeated a forbidden value or answered in the wrong language.
 
 The first two sets were used to find and fix the defects, so their numbers are an upper bound. The held-out set is lower, and that gap is the point of having it. The same code scored 24 and 26 of 32 with `qwen3-coder:30b` in two runs, so a difference of two cases is within the model's own variation. Across the two held-out runs, three flaws in the highlight rules showed up; they are the next thing to fix, together with a new held-out set:
 
@@ -185,7 +189,7 @@ The first two sets were used to find and fix the defects, so their numbers are a
 
 One held-out case was changed after its first run: `rent-week-city` expected only the computed "60", which no document contains, and the dataset check that every expected fact appears in a source rejected it. It now accepts "60" or "four times"; the numbers above are from the run after that change.
 
-Answers got slower: on `qwen3-coder:30b` the median on the Kestrel set grew from 5.3 to 8.8 seconds. Refining the highlight now also reads the neighbouring chunks, which is part of it; the rest is not pinned down yet.
+On 16 October the median answer time of `qwen3-coder:30b` on the Kestrel set had grown from 5.3 to 8.8 seconds; on 19 October, with nothing else using Ollama, it was 5.3 seconds again.
 
 How the numbers moved on the first two sets:
 
