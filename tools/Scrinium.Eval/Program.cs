@@ -33,7 +33,7 @@ try
     services.AddScriniumTextExtractors();
     services.AddScriniumOllama();
     services.AddSingleton(new TextChunker(options.Chunking));
-    services.AddSingleton(new RetrievalOptions(Search: options.Search));
+    services.AddSingleton(options.Retrieval);
     await using var provider = services.BuildServiceProvider();
 
     var settings = provider.GetRequiredService<SettingsService>();
@@ -91,7 +91,7 @@ try
         results)
     {
         Chunking = options.Chunking,
-        Search = options.Search
+        Retrieval = options.Retrieval
     };
 
     var markdown = ReportWriter.Markdown(run);
