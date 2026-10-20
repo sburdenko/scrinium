@@ -22,6 +22,7 @@ public sealed class AnswerService(
     {
         var searchQuery = await rewriter.RewriteAsync(question, history, ct);
         var outcome = await retriever.RetrieveAsync(searchQuery, ct);
+        yield return new AnswerEvent.Retrieved(outcome.Trace);
 
         if (outcome is not RetrievalOutcome.Found found)
         {

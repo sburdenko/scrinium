@@ -19,13 +19,36 @@ public sealed class AnswerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task The_trace_of_the_search_comes_before_anything_else()
+    {
+        await _app.ImportAndProcessAsync(_app.WriteFile("motor.md", "Звук мотора стал громче."));
+
+        var events = await AskAsync("звук мотора");
+
+        var retrieved = Assert.IsType<AnswerEvent.Retrieved>(events[0]);
+        Assert.Equal("звук мотора", retrieved.Trace.Query);
+        Assert.Contains(retrieved.Trace.Candidates, c => c.DocumentTitle == "motor.md" && c.Fate == Core.Retrieval.CandidateFate.Sent);
+    }
+
+    [Fact]
+    public async Task A_question_the_model_never_sees_still_reports_its_trace()
+    {
+        await _app.ImportAndProcessAsync(_app.WriteFile("motor.md", "Звук мотора в сентябре стал громче."));
+
+        var events = await AskAsync("рыжий кот любит молоко");
+
+        var retrieved = Assert.IsType<AnswerEvent.Retrieved>(events[0]);
+        Assert.All(retrieved.Trace.Candidates, c => Assert.Equal(Core.Retrieval.CandidateFate.BelowMinScore, c.Fate));
+    }
+
+    [Fact]
     public async Task Empty_archive_answers_without_calling_the_model()
     {
         var events = await AskAsync("что там про мотор?");
 
         Assert.Empty(_app.Chat.Requests);
         Assert.Contains(events, e => e is AnswerEvent.TextDelta { Text: PromptBuilder.ArchiveEmptyMessage });
-        Assert.Empty(Assert.IsType<AnswerEvent.SourcesFound>(events[0]).Citations);
+        Assert.Empty(events.OfType<AnswerEvent.SourcesFound>().First().Citations);
     }
 
     [Fact]
@@ -36,7 +59,7 @@ public sealed class AnswerServiceTests : IDisposable
         var events = await AskAsync("рыжий кот любит молоко");
 
         Assert.Empty(_app.Chat.Requests);
-        Assert.Empty(Assert.IsType<AnswerEvent.SourcesFound>(events[0]).Citations);
+        Assert.Empty(events.OfType<AnswerEvent.SourcesFound>().First().Citations);
         var text = string.Concat(events.OfType<AnswerEvent.TextDelta>().Select(d => d.Text));
         Assert.Contains("motor.md", text);
         Assert.Matches(@"similarity \d\.\d{2}\)", text);
@@ -51,7 +74,7 @@ public sealed class AnswerServiceTests : IDisposable
 
         var events = await AskAsync("звук мотора");
 
-        var sources = Assert.IsType<AnswerEvent.SourcesFound>(events[0]);
+        var sources = Assert.IsType<AnswerEvent.SourcesFound>(events[1]);
         Assert.Equal([1, 2], sources.Citations.Select(c => c.Number));
         Assert.Equal(["motor.md", "repair.txt"], sources.Citations.Select(c => c.DocumentTitle).Order());
         Assert.Equal("Мотор шумел [1].", string.Concat(events.OfType<AnswerEvent.TextDelta>().Select(d => d.Text)));

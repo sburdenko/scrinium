@@ -69,9 +69,10 @@ Open <http://localhost:5088> for the chat page. Files in the documents folder ar
 | Change models | **Settings**: pick the answer and embedding model from the models installed in Ollama |
 | Keep subjects apart | Pick a workspace above the archive, or create one with **+**. Each workspace has its own documents and sessions; the window reopens the last one |
 | Start a new topic | **New question**: earlier answers stay as rows, but follow-ups no longer see them |
+| See why an answer used what it used | **Diagnostics** at the bottom of the window: the search query, every candidate passage with its similarity score and whether it reached the model or why not, the thresholds and the time spent searching and answering |
 | Go back to an earlier session | Sessions are saved. On an empty window, **Recent sessions** lists them; a click restores the questions, answers and sources, and a follow-up continues that session |
 
-The window has one dark palette and one screen with three columns: archive, question and answer, original. The app icon is a pair of brackets around a one: a citation.
+The window has one dark palette and one screen with three columns: archive, question and answer, original, and a diagnostics panel that folds out below them. The app icon is a pair of brackets around a one: a citation.
 
 ![An earlier answer reopened: the other exchange collapses into a row and the right column follows its source](docs/screenshots/earlier-exchange.png)
 

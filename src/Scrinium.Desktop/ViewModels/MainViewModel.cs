@@ -40,6 +40,12 @@ public sealed partial class MainViewModel : ObservableObject
     private WorkspaceViewModel? _active;
 
     [ObservableProperty]
+    private bool _isDiagnosticsOpen;
+
+    [RelayCommand]
+    private void ToggleDiagnostics() => IsDiagnosticsOpen = !IsDiagnosticsOpen;
+
+    [ObservableProperty]
     private Workspace? _selectedWorkspace;
 
     partial void OnSelectedWorkspaceChanged(Workspace? value)

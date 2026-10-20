@@ -9,7 +9,7 @@
         Icon="avares://Scrinium.Desktop/Assets/Icon/scrinium.png"
         Width="1320" Height="820" MinWidth="980" MinHeight="560"
         WindowStartupLocation="CenterScreen">
-  <Grid x:Name="Frame" RowDefinitions="56,Auto,*" ColumnDefinitions="280,*,420" Background="Transparent">
+  <Grid x:Name="Frame" RowDefinitions="56,Auto,*,Auto" ColumnDefinitions="280,*,420" Background="Transparent">
     <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="{DynamicResource Ink}" BorderThickness="0,0,0,2">
       <Grid ColumnDefinitions="280,*,420">
         <Border Grid.Column="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0" Padding="20,0">
@@ -84,5 +84,15 @@
     </Border>
     <views:ChatView Grid.Row="2" Grid.Column="1" DataContext="{Binding Active.Chat}" />
     <views:RightPanelView Grid.Row="2" Grid.Column="2" DataContext="{Binding Active.Panel}" />
+
+    <DockPanel Grid.Row="3" Grid.ColumnSpan="3">
+      <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Ink}" BorderThickness="0,2,0,0" Padding="12,2">
+        <Button x:Name="DiagnosticsToggle" Classes="ghost" Content="Diagnostics" FontSize="13"
+                AutomationProperties.Name="Diagnostics" Command="{Binding ToggleDiagnosticsCommand}" />
+      </Border>
+      <Border IsVisible="{Binding IsDiagnosticsOpen}" Height="240" BorderBrush="{DynamicResource Ink}" BorderThickness="0,2,0,0">
+        <views:DiagnosticsPanelView DataContext="{Binding Active.Chat.Diagnostics}" />
+      </Border>
+    </DockPanel>
   </Grid>
 </Window>

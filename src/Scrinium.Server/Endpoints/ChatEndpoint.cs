@@ -62,6 +62,9 @@ internal static class ChatEndpoint
                 if (current is null)
                     break;
 
+                if (current is AnswerEvent.Retrieved)
+                    continue;
+
                 yield return current switch
                 {
                     AnswerEvent.SourcesFound sources => Item("sources", sources.Citations.Select(ToDto).ToList()),

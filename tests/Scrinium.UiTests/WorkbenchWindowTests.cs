@@ -246,6 +246,24 @@ public sealed class WorkbenchWindowTests
     }
 
     [AvaloniaFact]
+    public async Task The_diagnostics_strip_opens_a_panel_with_the_search_of_the_focused_question()
+    {
+        var (harness, driver) = await OpenWithTwoPlansAsync("The Free plan allows 60 [1].");
+        using var _ = harness;
+        await AskThroughTheComposerAsync(driver, harness, "free plan requests per minute");
+        Assert.False(driver.Shows("Searched for: free plan requests per minute"));
+
+        driver.Click(driver.Button("Diagnostics"));
+        await driver.UntilAsync(() => driver.Shows("Searched for: free plan requests per minute"), "the diagnostics panel");
+
+        Assert.True(driver.Shows("sent"));
+        Assert.True(driver.Shows("min score 0.35 · margin 0.10 · top 6 · meaning and words"));
+
+        driver.Click(driver.Button("Diagnostics"));
+        await driver.UntilAsync(() => !driver.Shows("Searched for: free plan requests per minute"), "the closed panel");
+    }
+
+    [AvaloniaFact]
     public async Task Every_visible_button_has_a_readable_name()
     {
         var (harness, driver) = await OpenWithTwoPlansAsync("Free allows 60 [1]. Team allows 1200 [2].");
