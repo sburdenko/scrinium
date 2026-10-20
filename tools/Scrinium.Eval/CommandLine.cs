@@ -1,3 +1,4 @@
+using System.Globalization;
 using Scrinium.Core.Chunking;
 using Scrinium.Core.Retrieval;
 
@@ -15,7 +16,7 @@ public sealed record EvalOptions(
 {
     public ChunkingOptions Chunking { get; init; } = new();
 
-    public SearchMode Search { get; init; } = SearchMode.Hybrid;
+    public RetrievalOptions Retrieval { get; init; } = new();
 
     public const string Usage = """
         Usage: Scrinium.Eval --documents <folder> --cases <file.json> [options]
@@ -29,6 +30,8 @@ public sealed record EvalOptions(
           --code-blocks <choice>     own (default): code in chunks of its own; with-text: code stays in the text
           --section-paths <choice>   prepend (default): chunks carry their heading path; omit: they do not
           --search <choice>          hybrid (default): meaning and the identifiers a question names; meaning: meaning only
+          --min-score <0..1>         drop retrieved chunks scoring below this (default 0.35)
+          --score-margin <0..1>      drop retrieved chunks this far below the best one (default 0.10)
         """;
 
     public static EvalOptions Parse(string[] args)
@@ -46,9 +49,10 @@ public sealed record EvalOptions(
             values.TryGetValue(key, out var value) ? value : throw new ArgumentException($"{key} is required.");
 
         double? minPass = values.TryGetValue("--min-pass", out var raw)
-            ? double.Parse(raw, System.Globalization.CultureInfo.InvariantCulture)
+            ? double.Parse(raw, CultureInfo.InvariantCulture)
             : null;
 
+        var retrieval = new RetrievalOptions();
         return new EvalOptions(
             Required("--documents"),
             Required("--cases"),
@@ -64,7 +68,12 @@ public sealed record EvalOptions(
             Chunking = new ChunkingOptions(
                 CodeBlocks: Choice(values, "--code-blocks", new() { ["own"] = CodeBlocks.OwnChunks, ["with-text"] = CodeBlocks.WithText }, CodeBlocks.OwnChunks),
                 SectionPaths: Choice(values, "--section-paths", new() { ["prepend"] = SectionPaths.Prepend, ["omit"] = SectionPaths.Omit }, SectionPaths.Prepend)),
-            Search = Choice(values, "--search", new() { ["hybrid"] = SearchMode.Hybrid, ["meaning"] = SearchMode.Meaning }, SearchMode.Hybrid)
+            Retrieval = retrieval with
+            {
+                MinScore = Fraction(values, "--min-score", retrieval.MinScore),
+                ScoreMargin = Fraction(values, "--score-margin", retrieval.ScoreMargin),
+                Search = Choice(values, "--search", new() { ["hybrid"] = SearchMode.Hybrid, ["meaning"] = SearchMode.Meaning }, retrieval.Search)
+            }
         };
     }
 
@@ -76,5 +85,15 @@ public sealed record EvalOptions(
         return choices.TryGetValue(raw, out var choice)
             ? choice
             : throw new ArgumentException($"{key} must be one of: {string.Join(", ", choices.Keys)}.");
+    }
+
+    private static double Fraction(Dictionary<string, string> values, string key, double fallback)
+    {
+        if (!values.TryGetValue(key, out var raw))
+            return fallback;
+
+        return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 1
+            ? value
+            : throw new ArgumentException($"{key} must be a number from 0 to 1.");
     }
 }

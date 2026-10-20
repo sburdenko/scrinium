@@ -15,7 +15,7 @@ public sealed record EvaluationRun(
 {
     public ChunkingOptions Chunking { get; init; } = new();
 
-    public SearchMode Search { get; init; } = SearchMode.Hybrid;
+    public RetrievalOptions Retrieval { get; init; } = new();
 }
 
 public static class ReportWriter
@@ -31,7 +31,8 @@ public static class ReportWriter
         report.AppendLine($"- Embedding model: `{run.EmbeddingModel}`");
         report.AppendLine($"- Documents: {run.DocumentCount}");
         report.AppendLine($"- Chunking: {Describe(run.Chunking)}");
-        report.AppendLine($"- Search: {(run.Search == SearchMode.Hybrid ? "meaning and words" : "meaning only")}");
+        report.AppendLine($"- Search: {(run.Retrieval.Search == SearchMode.Hybrid ? "meaning and words" : "meaning only")}");
+        report.AppendLine($"- Retrieval: {Describe(run.Retrieval)}");
         report.AppendLine().AppendLine("## Summary").AppendLine();
         report.AppendLine("| Measure | Result |").AppendLine("|---|---|");
         report.AppendLine($"| Cases passed | {Ratio(summary.Passed, summary.Total)} |");
@@ -99,4 +100,7 @@ public static class ReportWriter
         var sections = chunking.SectionPaths == SectionPaths.Prepend ? "section paths prepended" : "section paths omitted";
         return $"{code}, {sections}";
     }
+
+    private static string Describe(RetrievalOptions retrieval) => string.Create(
+        CultureInfo.InvariantCulture, $"min score {retrieval.MinScore:0.00}, score margin {retrieval.ScoreMargin:0.00}");
 }

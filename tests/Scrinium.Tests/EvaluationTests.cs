@@ -69,8 +69,8 @@ public class EvalOptionsTests
     [Fact]
     public void Search_defaults_to_hybrid_and_can_be_limited_to_meaning()
     {
-        Assert.Equal(SearchMode.Hybrid, EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]).Search);
-        Assert.Equal(SearchMode.Meaning, EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--search", "meaning"]).Search);
+        Assert.Equal(SearchMode.Hybrid, EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]).Retrieval.Search);
+        Assert.Equal(SearchMode.Meaning, EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--search", "meaning"]).Retrieval.Search);
     }
 
     [Fact]
@@ -82,6 +82,35 @@ public class EvalOptionsTests
     [InlineData("--section-paths", "maybe")]
     public void An_unknown_chunking_choice_is_rejected(string option, string value) =>
         Assert.Throws<ArgumentException>(() => EvalOptions.Parse(["--documents", "d", "--cases", "c.json", option, value]));
+
+    [Fact]
+    public void Retrieval_defaults_to_the_application_thresholds()
+    {
+        var options = EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]);
+
+        Assert.Equal((new RetrievalOptions().MinScore, new RetrievalOptions().ScoreMargin), (options.Retrieval.MinScore, options.Retrieval.ScoreMargin));
+    }
+
+    [Fact]
+    public void Retrieval_thresholds_can_be_switched_for_a_comparison()
+    {
+        var options = EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--min-score", "0.45", "--score-margin", "0.2"]);
+
+        Assert.Equal((0.45, 0.2), (options.Retrieval.MinScore, options.Retrieval.ScoreMargin));
+    }
+
+    [Theory]
+    [InlineData("--min-score", "1.5")]
+    [InlineData("--min-score", "-0.1")]
+    [InlineData("--min-score", "high")]
+    [InlineData("--score-margin", "2")]
+    [InlineData("--score-margin", "wide")]
+    public void A_retrieval_threshold_outside_zero_to_one_is_rejected(string option, string value)
+    {
+        var error = Assert.Throws<ArgumentException>(() => EvalOptions.Parse(["--documents", "d", "--cases", "c.json", option, value]));
+
+        Assert.Contains(option, error.Message);
+    }
 
     [Fact]
     public void Without_the_only_option_every_case_runs()
@@ -531,9 +560,22 @@ public class EvaluationReportTests
     [InlineData(SearchMode.Meaning, "- Search: meaning only")]
     public void The_report_names_how_the_archive_was_searched(SearchMode search, string line)
     {
-        var run = new EvaluationRun("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, [Result("ok-case", true, 1)]) { Search = search };
+        var run = new EvaluationRun("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, [Result("ok-case", true, 1)]) { Retrieval = new RetrievalOptions(Search: search) };
 
         Assert.Contains(line, ReportWriter.Markdown(run));
+    }
+
+    [Fact]
+    public void The_report_names_the_retrieval_thresholds()
+    {
+        var run = new EvaluationRun("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, [Result("ok-case", true, 1)])
+        {
+            Retrieval = new RetrievalOptions(MinScore: 0.4, ScoreMargin: 0.15)
+        };
+
+        var markdown = ReportWriter.Markdown(run);
+
+        Assert.Contains("- Retrieval: min score 0.40, score margin 0.15", markdown);
     }
 
     [Fact]
