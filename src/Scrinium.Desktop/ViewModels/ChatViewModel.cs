@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -45,10 +46,14 @@ public sealed partial class ChatViewModel : ObservableObject
         if (newValue is not null)
             newValue.IsFocused = true;
 
+        Diagnostics.Show(newValue);
+
         CitationStateChanged?.Invoke();
     }
 
     public ObservableCollection<SessionSummaryViewModel> RecentSessions { get; } = [];
+
+    public DiagnosticsPanelViewModel Diagnostics { get; } = new();
 
     public bool IsEmpty => Exchanges.Count == 0;
 
@@ -90,7 +95,7 @@ public sealed partial class ChatViewModel : ObservableObject
             .SelectMany(e => new[] { ChatTurn.User(e.Question), ChatTurn.Assistant(e.Answer.Text) })
             .ToList();
 
-        var exchange = Track(new ExchangeViewModel(question, DateTimeOffset.Now));
+        var exchange = Track(new ExchangeViewModel(question, DateTimeOffset.Now, new ExchangeDiagnostics.Searching()));
         Exchanges.Add(exchange);
         FocusedExchange = exchange;
         var sessionId = _sessionId ??= Guid.NewGuid();
@@ -99,6 +104,7 @@ public sealed partial class ChatViewModel : ObservableObject
         ScrollRequested?.Invoke();
 
         var reply = exchange.Answer;
+        var clock = Stopwatch.StartNew();
         _cts = new CancellationTokenSource();
         IsBusy = true;
         try
@@ -107,6 +113,9 @@ public sealed partial class ChatViewModel : ObservableObject
             {
                 switch (answerEvent)
                 {
+                    case AnswerEvent.Retrieved retrieved:
+                        exchange.Diagnostics = new ExchangeDiagnostics.Recorded(retrieved.Trace, clock.Elapsed, null);
+                        break;
                     case AnswerEvent.SourcesFound sources:
                         reply.ApplySources(sources.Citations);
                         break;
@@ -136,6 +145,9 @@ public sealed partial class ChatViewModel : ObservableObject
         }
         finally
         {
+            if (exchange.Diagnostics is ExchangeDiagnostics.Recorded recorded)
+                exchange.Diagnostics = recorded with { AnswerTime = clock.Elapsed - recorded.SearchTime };
+
             IsBusy = false;
             _cts.Dispose();
             _cts = null;
@@ -202,7 +214,7 @@ public sealed partial class ChatViewModel : ObservableObject
         Exchanges.Clear();
         foreach (var item in saved)
         {
-            var exchange = Track(new ExchangeViewModel(item.Question, item.Asked));
+            var exchange = Track(new ExchangeViewModel(item.Question, item.Asked, new ExchangeDiagnostics.NotRecorded()));
             exchange.Answer.Restore(item.Answer, item.Citations, item.Ending == ExchangeEnding.Stopped ? MessagePhase.Stopped : MessagePhase.Done);
             Exchanges.Add(exchange);
         }

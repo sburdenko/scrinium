@@ -24,7 +24,7 @@ Documents live in **workspaces**. A workspace is a folder with its own database,
 | **Storage** | Keeps documents, passages and their number lists in one SQLite file and searches them. The only part that knows how that file is laid out. | Core | SQLite |
 | **Extraction** | Gets plain text out of files: `.txt`, `.md`, `.pdf`, `.html` and `.docx`, turning HTML and Word into Markdown. The only part that understands these formats. | Core | PdfPig, HtmlAgilityPack, Open XML SDK |
 | **Ollama** | Connects Core to an Ollama server: the two model interfaces, a check of what is installed, and downloading models. The only part that knows about Ollama. | Core | OllamaSharp |
-| **Desktop** | The window: the document archive, the chat with its cited sources and the original preview side by side, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
+| **Desktop** | The window: the document archive, the chat with its cited sources and the original preview side by side, a diagnostics panel with the search behind the focused answer, settings, the Ollama status banner. Can start a local Ollama. | Core, Storage, Extraction, Ollama | Avalonia |
 | **Server** | A small web application: a chat endpoint that streams the answer, a source preview, a document list behind a key, a health check and the chat page. Limits how often and how many at once a visitor can ask. | Core, Storage, Extraction, Ollama | ASP.NET Core |
 
 `tests/Scrinium.Tests` checks Core with fake models, and runs the Server on a test server, so the whole test run needs no model server.

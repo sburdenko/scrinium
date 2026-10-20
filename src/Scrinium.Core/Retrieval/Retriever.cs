@@ -16,9 +16,6 @@ public sealed class Retriever(
     PassageLocator passageLocator,
     RetrievalOptions options)
 {
-    // Reciprocal rank fusion: the usual constant keeps one list's first place from drowning the other list.
-    private const int FusionConstant = 60;
-
     public async Task<RetrievalOutcome> RetrieveAsync(string query, CancellationToken ct = default)
     {
         var model = settings.Current.EmbeddingModel;
@@ -27,15 +24,23 @@ public sealed class Retriever(
         var byMeaning = await vectors.SearchAsync(queryVector, model, options.TopK, ct);
 
         if (byMeaning.Count == 0)
-            return new RetrievalOutcome.ArchiveEmpty();
+            return new RetrievalOutcome.ArchiveEmpty(Trace(query, []));
 
         var best = byMeaning[0];
         if (best.Score < options.MinScore)
-            return new RetrievalOutcome.NothingRelevant(best.DocumentTitle, best.Score);
+        {
+            var below = byMeaning.Select(hit => HitFusion.Candidate(hit, CandidateSource.Meaning, CandidateFate.BelowMinScore));
+            return new RetrievalOutcome.NothingRelevant(best.DocumentTitle, best.Score, Trace(query, below));
+        }
 
         var byWords = await FindByWordsAsync(query, queryVector, model, ct);
-        return new RetrievalOutcome.Found(await BuildFragmentsAsync(Fuse(byMeaning, byWords, best.Score), queryVector, ct));
+        var fusion = HitFusion.Of(byMeaning, byWords, options);
+        var fragments = await BuildFragmentsAsync(fusion.Kept.Select(kept => kept.Hit).ToList(), queryVector, ct);
+        return new RetrievalOutcome.Found(fragments, Trace(query, fusion.Candidates(fragments.Count)));
     }
+
+    private RetrievalTrace Trace(string query, IEnumerable<RetrievalCandidate> candidates) =>
+        new(query, options, candidates.OrderByDescending(candidate => candidate.Score).ToList());
 
     private async Task<IReadOnlyList<ChunkHit>> FindByWordsAsync(string query, float[] queryVector, string model, CancellationToken ct)
     {
@@ -50,24 +55,6 @@ public sealed class Retriever(
             .Where(hit => !double.IsNegativeInfinity(hit.Score))
             .ToList();
     }
-
-    /// <summary>
-    /// Every hit must reach the floor. Meaning hits must also stay close to the best one; word hits may not, because
-    /// an exact identifier is the case where the embedding ranks the right chunk too low.
-    /// </summary>
-    private IReadOnlyList<ChunkHit> Fuse(IReadOnlyList<ChunkHit> byMeaning, IReadOnlyList<ChunkHit> byWords, double best) =>
-        Ranked(byMeaning, hit => hit.Score >= options.MinScore && hit.Score >= best - options.ScoreMargin)
-            .Concat(Ranked(byWords, hit => hit.Score >= options.MinScore))
-            .GroupBy(entry => entry.Hit.Chunk.Id)
-            .Select(group => (group.First().Hit, Weight: group.Sum(entry => entry.Weight)))
-            .OrderByDescending(entry => entry.Weight)
-            .ThenByDescending(entry => entry.Hit.Score)
-            .Take(options.TopK)
-            .Select(entry => entry.Hit)
-            .ToList();
-
-    private static IEnumerable<(ChunkHit Hit, double Weight)> Ranked(IReadOnlyList<ChunkHit> hits, Func<ChunkHit, bool> keep) =>
-        hits.Select((hit, index) => (Hit: hit, Weight: 1.0 / (FusionConstant + index + 1))).Where(entry => keep(entry.Hit));
 
     private async Task<IReadOnlyList<ContextFragment>> BuildFragmentsAsync(
         IReadOnlyList<ChunkHit> hits,

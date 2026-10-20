@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Scrinium.Desktop.ViewModels"
+             x:Class="Scrinium.Desktop.Views.DiagnosticsPanelView"
+             x:DataType="vm:DiagnosticsPanelViewModel">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.cell">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.cell.sent">
+      <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+      <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Background="{DynamicResource Surface}">
+    <TextBlock IsVisible="{Binding !HasRecord}" Classes="muted" FontSize="13" Margin="20,16" Text="{Binding Message}" />
+
+    <Grid IsVisible="{Binding HasRecord}" ColumnDefinitions="360,*">
+      <Border Grid.Column="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,2,0" Padding="20,14">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="SEARCH" />
+          <TextBlock Text="{Binding QueryLine}" FontSize="13" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding OutcomeLine}" FontSize="13" FontWeight="ExtraBold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SettingsLine}" Classes="muted small" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding TimingLine}" Classes="muted small" />
+        </StackPanel>
+      </Border>
+
+      <DockPanel Grid.Column="1" Margin="20,14,16,8">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="64,140,150,*,*" Margin="0,0,0,6">
+          <TextBlock Grid.Column="0" Classes="label small" Text="SCORE" />
+          <TextBlock Grid.Column="1" Classes="label small" Text="FATE" />
+          <TextBlock Grid.Column="2" Classes="label small" Text="FOUND BY" />
+          <TextBlock Grid.Column="3" Classes="label small" Text="DOCUMENT" />
+          <TextBlock Grid.Column="4" Classes="label small" Text="SECTION" />
+        </Grid>
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Candidates}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CandidateRowViewModel">
+                <Grid ColumnDefinitions="64,140,150,*,*" Height="24">
+                  <TextBlock Grid.Column="0" Classes="cell" Classes.sent="{Binding IsSent}" Text="{Binding Score}" />
+                  <TextBlock Grid.Column="1" Classes="cell" Classes.sent="{Binding IsSent}" Text="{Binding Fate}" />
+                  <TextBlock Grid.Column="2" Classes="cell muted" Text="{Binding Source}" />
+                  <TextBlock Grid.Column="3" Classes="cell" Text="{Binding Document}" ToolTip.Tip="{Binding Document}" />
+                  <TextBlock Grid.Column="4" Classes="cell muted" Text="{Binding Section}" ToolTip.Tip="{Binding Section}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Grid>
+  </Grid>
+</UserControl>

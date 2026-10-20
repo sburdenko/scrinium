@@ -6,6 +6,9 @@ public abstract record AnswerEvent
 {
     private AnswerEvent() { }
 
+    /// <summary>What the search looked at, sent before anything else so a window can show why an answer used what it used.</summary>
+    public sealed record Retrieved(RetrievalTrace Trace) : AnswerEvent;
+
     public sealed record SourcesFound(IReadOnlyList<Citation> Citations) : AnswerEvent;
 
     public sealed record TextDelta(string Text) : AnswerEvent;

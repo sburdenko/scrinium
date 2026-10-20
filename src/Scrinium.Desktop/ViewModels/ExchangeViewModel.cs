@@ -7,10 +7,11 @@ public sealed partial class ExchangeViewModel : ObservableObject
 {
     private const int ShortAnswerLimit = 110;
 
-    public ExchangeViewModel(string question, DateTimeOffset asked)
+    public ExchangeViewModel(string question, DateTimeOffset asked, ExchangeDiagnostics diagnostics)
     {
         Question = question;
         Asked = asked;
+        _diagnostics = diagnostics;
         Answer.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(AnswerViewModel.Text) or nameof(AnswerViewModel.Phase))
@@ -30,6 +31,9 @@ public sealed partial class ExchangeViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isFocused;
+
+    [ObservableProperty]
+    private ExchangeDiagnostics _diagnostics;
 
     public bool IsCompressed => !IsFocused;
 
