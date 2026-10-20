@@ -496,6 +496,21 @@ public sealed class EvaluationRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task The_retrieval_trace_of_the_question_is_recorded()
+    {
+        var file = _app.WriteFile("engine.txt", "Engine noise got louder in September.");
+        var runner = new EvaluationRunner(_app.Library, _app.Pipeline, _app.Answers);
+        await runner.IndexAsync([file]);
+
+        var result = await runner.RunAsync(
+            new EvaluationCase("engine", "engine noise louder", null, new Expectation.Answers(["louder"], "engine.txt")));
+
+        var trace = result.Observation.Trace!;
+        Assert.Equal("engine noise louder", trace.Query);
+        Assert.Contains(trace.Candidates, c => c is { DocumentTitle: "engine.txt", Fate: CandidateFate.Sent });
+    }
+
+    [Fact]
     public async Task A_question_about_nothing_is_scored_as_a_refusal()
     {
         var file = _app.WriteFile("engine.txt", "Engine noise got louder in September.");
@@ -516,6 +531,107 @@ public class EvaluationReportTests
         var testCase = new EvaluationCase(id, "q " + id, null, new Expectation.Refuses());
         var observation = new AnswerObservation("answer text of " + id, [], passed ? [] : ["x.md"], TimeSpan.FromSeconds(seconds));
         return new CaseResult(testCase, observation, AnswerScorer.Score(testCase, observation));
+    }
+
+    private static RetrievalTrace Trace(params RetrievalCandidate[] candidates) =>
+        new("the search query", new RetrievalOptions(MinScore: 0.35), candidates);
+
+    private static CaseResult Traced(string id, Expectation expect, bool passed, RetrievalTrace trace)
+    {
+        var testCase = new EvaluationCase(id, "q " + id, null, expect);
+        var observation = new AnswerObservation("answer of " + id, [], passed ? [] : ["x.md"], TimeSpan.FromSeconds(1), Trace: trace);
+        return new CaseResult(testCase, observation, AnswerScorer.Score(testCase, observation));
+    }
+
+    private static EvaluationRun Run(params CaseResult[] results) =>
+        new("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, results);
+
+    [Fact]
+    public void The_cases_table_shows_the_best_candidate_score_of_each_case()
+    {
+        var trace = Trace(
+            new RetrievalCandidate("a.md", "Intro", 0.6124, CandidateSource.Meaning, CandidateFate.Sent),
+            new RetrievalCandidate("b.md", "", 0.41, CandidateSource.Words, CandidateFate.OutsideMargin));
+
+        var markdown = ReportWriter.Markdown(Run(Traced("scored", new Expectation.Refuses(), true, trace)));
+
+        Assert.Contains("| Case | Result | Best score | Time | Detail |", markdown);
+        Assert.Contains("| scored | pass | 0.612 | 1.0 s |", markdown);
+    }
+
+    [Fact]
+    public void A_case_over_an_empty_archive_has_no_best_score()
+    {
+        var markdown = ReportWriter.Markdown(Run(Traced("empty", new Expectation.Refuses(), true, Trace())));
+
+        Assert.Contains("| empty | pass | — | 1.0 s |", markdown);
+    }
+
+    [Fact]
+    public void Failed_cases_list_every_candidate_with_its_score_fate_source_and_section()
+    {
+        var trace = Trace(
+            new RetrievalCandidate("doc.md", "Pricing", 0.612, CandidateSource.Meaning, CandidateFate.Sent),
+            new RetrievalCandidate("api.md", "Errors › Codes", 0.48, CandidateSource.MeaningAndWords, CandidateFate.OverBudget),
+            new RetrievalCandidate("faq.md", "", 0.3, CandidateSource.Words, CandidateFate.BelowMinScore),
+            new RetrievalCandidate("old.md", "Notes", 0.29, CandidateSource.Meaning, CandidateFate.OutsideMargin),
+            new RetrievalCandidate("far.md", "Notes", 0.28, CandidateSource.Meaning, CandidateFate.BeyondTopK));
+
+        var markdown = ReportWriter.Markdown(Run(Traced("bad", new Expectation.Refuses(), false, trace)));
+
+        Assert.Contains("Candidates for \"the search query\":", markdown);
+        Assert.Contains("- 0.612 sent · meaning · doc.md › Pricing", markdown);
+        Assert.Contains("- 0.480 over budget · meaning and words · api.md › Errors › Codes", markdown);
+        Assert.Contains("- 0.300 below min score · words · faq.md\n", markdown.ReplaceLineEndings("\n"));
+        Assert.Contains("- 0.290 outside margin · meaning · old.md › Notes", markdown);
+        Assert.Contains("- 0.280 beyond top k · meaning · far.md › Notes", markdown);
+    }
+
+    [Fact]
+    public void A_failed_case_over_an_empty_archive_says_there_were_no_candidates()
+    {
+        var markdown = ReportWriter.Markdown(Run(Traced("bad", new Expectation.Refuses(), false, Trace())));
+
+        Assert.Contains("- none, the archive is empty", markdown);
+    }
+
+    [Fact]
+    public void Passed_cases_do_not_list_their_candidates()
+    {
+        var trace = Trace(new RetrievalCandidate("doc.md", "Pricing", 0.612, CandidateSource.Meaning, CandidateFate.Sent));
+
+        var markdown = ReportWriter.Markdown(Run(Traced("ok", new Expectation.Refuses(), true, trace)));
+
+        Assert.DoesNotContain("sent · meaning", markdown);
+    }
+
+    [Fact]
+    public void The_summary_shows_whether_the_score_floor_separates_answerable_cases_from_refusals()
+    {
+        static RetrievalTrace Best(double score) =>
+            Trace(new RetrievalCandidate("doc.md", "", score, CandidateSource.Meaning, CandidateFate.Sent));
+        var answers = new Expectation.Answers([], null);
+
+        var markdown = ReportWriter.Markdown(Run(
+            Traced("a1", answers, true, Best(0.71)),
+            Traced("a2", answers, true, Best(0.52)),
+            Traced("r1", new Expectation.Refuses(), true, Best(0.44)),
+            Traced("r2", new Expectation.Refuses(), true, Best(0.31)),
+            Traced("r3", new Expectation.Refuses(), true, Trace())));
+
+        Assert.Contains("| Score floor | 0.350 |", markdown);
+        Assert.Contains("| Lowest best score, answerable cases | 0.520 |", markdown);
+        Assert.Contains("| Highest best score, refusal cases | 0.440 |", markdown);
+    }
+
+    [Fact]
+    public void A_run_without_traces_has_no_score_lines()
+    {
+        var markdown = ReportWriter.Markdown(Run(Result("plain", true, 1)));
+
+        Assert.Contains("| plain | pass | — | 1.0 s |", markdown);
+        Assert.DoesNotContain("Score floor", markdown);
+        Assert.DoesNotContain("best score,", markdown);
     }
 
     [Fact]

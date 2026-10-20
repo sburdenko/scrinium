@@ -44,14 +44,15 @@ public static class ReportWriter
         report.AppendLine($"| Answered in the language of the question | {Ratio(summary.LanguageCorrect, summary.LanguageChecked)} |");
         report.AppendLine($"| Median time per answer | {summary.MedianTime.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s |");
         report.AppendLine($"| Slowest answer | {summary.SlowestTime.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s |");
+        AppendScoreSeparation(report, run.Results);
 
         report.AppendLine().AppendLine("## Cases").AppendLine();
-        report.AppendLine("| Case | Result | Time | Detail |").AppendLine("|---|---|---|---|");
+        report.AppendLine("| Case | Result | Best score | Time | Detail |").AppendLine("|---|---|---|---|---|");
         foreach (var result in run.Results)
         {
             var failures = result.Checks.OfType<CheckResult.Failed>().Select(f => $"{f.Name}: {f.Reason}");
             report.AppendLine(
-                $"| {result.Case.Id} | {(result.Passed ? "pass" : "FAIL")} | " +
+                $"| {result.Case.Id} | {(result.Passed ? "pass" : "FAIL")} | {TraceFormat.Score(result.Observation.BestScore)} | " +
                 $"{result.Observation.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s | " +
                 $"{Escape(string.Join("; ", failures))} |");
         }
@@ -77,10 +78,45 @@ public static class ReportWriter
                 foreach (var line in result.Observation.RetrievedLines ?? result.Observation.RetrievedTitles)
                     report.AppendLine($"- {line}");
                 report.AppendLine();
+
+                if (result.Observation.Trace is { } trace)
+                    AppendCandidates(report, trace);
             }
         }
 
         return report.ToString();
+    }
+
+    /// <summary>
+    /// The score floor next to the weakest answerable case and the strongest refusal: the floor separates them when it
+    /// lies between the two.
+    /// </summary>
+    private static void AppendScoreSeparation(StringBuilder report, IReadOnlyList<CaseResult> results)
+    {
+        var floor = results.Select(r => r.Observation.Trace).OfType<RetrievalTrace>().FirstOrDefault()?.Options.MinScore;
+        if (floor is null)
+            return;
+
+        var answerable = BestScores(results, r => r.Case.Expect is Expectation.Answers);
+        var refusals = BestScores(results, r => r.Case.Expect is Expectation.Refuses);
+        report.AppendLine($"| Score floor | {TraceFormat.Score(floor)} |");
+        if (answerable.Count > 0)
+            report.AppendLine($"| Lowest best score, answerable cases | {TraceFormat.Score(answerable.Min())} |");
+        if (refusals.Count > 0)
+            report.AppendLine($"| Highest best score, refusal cases | {TraceFormat.Score(refusals.Max())} |");
+    }
+
+    private static List<double> BestScores(IReadOnlyList<CaseResult> results, Func<CaseResult, bool> include) =>
+        results.Where(include).Select(r => r.Observation.BestScore).OfType<double>().ToList();
+
+    private static void AppendCandidates(StringBuilder report, RetrievalTrace trace)
+    {
+        report.AppendLine($"Candidates for \"{trace.Query.ReplaceLineEndings(" ")}\":").AppendLine();
+        if (trace.Candidates.Count == 0)
+            report.AppendLine("- none, the archive is empty");
+        foreach (var candidate in trace.Candidates)
+            report.AppendLine(TraceFormat.Line(candidate));
+        report.AppendLine();
     }
 
     private static string Shorten(string text)

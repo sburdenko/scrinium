@@ -23,6 +23,7 @@ public sealed class EvaluationRunner(DocumentLibrary library, IngestionPipeline 
         var text = new StringBuilder();
         IReadOnlyList<Citation> citations = [];
         IReadOnlyList<Citation> retrieved = [];
+        RetrievalTrace? trace = null;
 
         var history = testCase.History
             .Select(turn => turn.Role == "assistant" ? ChatTurn.Assistant(turn.Text) : ChatTurn.User(turn.Text))
@@ -32,6 +33,9 @@ public sealed class EvaluationRunner(DocumentLibrary library, IngestionPipeline 
         {
             switch (answerEvent)
             {
+                case AnswerEvent.Retrieved searched:
+                    trace = searched.Trace;
+                    break;
                 case AnswerEvent.SourcesFound sources:
                     citations = sources.Citations;
                     if (retrieved.Count == 0)
@@ -64,7 +68,8 @@ public sealed class EvaluationRunner(DocumentLibrary library, IngestionPipeline 
             citedTitles,
             clock.Elapsed,
             citations.Where(c => cited.Contains(c.Number)).Select(c => c.Preview).ToList(),
-            retrieved.Select(c => $"[{c.Number}] {c.DocumentTitle}: {c.Preview.ReplaceLineEndings(" ")}").ToList());
+            retrieved.Select(c => $"[{c.Number}] {c.DocumentTitle}: {c.Preview.ReplaceLineEndings(" ")}").ToList(),
+            trace);
 
         return new CaseResult(testCase, observation, AnswerScorer.Score(testCase, observation));
     }
