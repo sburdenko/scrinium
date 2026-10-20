@@ -6,7 +6,7 @@ using Scrinium.Core.Storage;
 
 namespace Scrinium.Storage;
 
-public sealed class SqliteStore : IDocumentStore, IVectorStore
+public sealed class SqliteStore : IDocumentStore, IVectorStore, IWordIndex
 {
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -88,7 +88,7 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         await using (var delete = connection.CreateCommand())
         {
             delete.Transaction = transaction;
-            delete.CommandText = "DELETE FROM chunks WHERE document_id = $id";
+            delete.CommandText = DeleteChunks;
             delete.Parameters.AddWithValue("$id", documentId.ToString());
             await delete.ExecuteNonQueryAsync(ct);
         }
@@ -114,6 +114,14 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
             insert.Parameters.AddWithValue("$content", chunk.Content.ToString());
             insert.Parameters.AddWithValue("$embedding", VectorMath.ToBlob(VectorMath.Normalize(embedded.Vector)));
             await insert.ExecuteNonQueryAsync(ct);
+
+            await using var index = connection.CreateCommand();
+            index.Transaction = transaction;
+            index.CommandText = "INSERT INTO chunk_words (text, section, chunk_id) VALUES ($text, $section, $id)";
+            index.Parameters.AddWithValue("$text", chunk.Text);
+            index.Parameters.AddWithValue("$section", chunk.Section);
+            index.Parameters.AddWithValue("$id", chunk.Id.ToString());
+            await index.ExecuteNonQueryAsync(ct);
         }
 
         await using (var update = connection.CreateCommand())
@@ -161,7 +169,7 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct);
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "DELETE FROM chunks WHERE document_id = $id; DELETE FROM documents WHERE id = $id;";
+        command.CommandText = DeleteChunks + " DELETE FROM documents WHERE id = $id;";
         command.Parameters.AddWithValue("$id", documentId.ToString());
         await command.ExecuteNonQueryAsync(ct);
         await transaction.CommitAsync(ct);
@@ -208,6 +216,47 @@ public sealed class SqliteStore : IDocumentStore, IVectorStore
         hits.Reverse();
         return hits;
     }
+
+    public async Task<IReadOnlyList<WordMatch>> FindAsync(
+        IReadOnlyList<string> terms,
+        string embeddingModel,
+        int topK,
+        CancellationToken ct = default)
+    {
+        var phrases = terms.Where(term => term.Any(char.IsLetterOrDigit)).Select(Phrase).ToList();
+        if (phrases.Count == 0)
+            return [];
+
+        await using var connection = await OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT c.id, c.document_id, c.ordinal, c.page, c.offset, c.text, c.date, c.token_count,
+                   c.embedding, d.title, c.section, c.content
+            FROM chunk_words
+            JOIN chunks c ON c.id = chunk_words.chunk_id
+            JOIN documents d ON d.id = c.document_id
+            WHERE chunk_words MATCH $query AND d.state = 'Ready' AND d.embedding_model = $model
+            ORDER BY chunk_words.rank
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$query", string.Join(" OR ", phrases));
+        command.Parameters.AddWithValue("$model", embeddingModel);
+        command.Parameters.AddWithValue("$limit", topK);
+
+        var matches = new List<WordMatch>();
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            matches.Add(new WordMatch(ReadChunk(reader), reader.GetString(9), VectorMath.FromBlob((byte[])reader["embedding"])));
+        return matches;
+    }
+
+    /// <summary>An FTS5 string literal: the term is matched as a phrase of its words, never read as query syntax.</summary>
+    private static string Phrase(string term) => "\"" + term.Replace("\"", "\"\"") + "\"";
+
+    private const string DeleteChunks = """
+        DELETE FROM chunk_words WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = $id);
+        DELETE FROM chunks WHERE document_id = $id;
+        """;
 
     private SqliteConnection Open()
     {

@@ -28,7 +28,7 @@ public sealed class WorkspaceScopeFactory(
         var opened = stores.Open(paths);
         var pipeline = new IngestionPipeline(opened.Documents, _extractors, chunker, embedder, settings, paths);
         var library = new DocumentLibrary(opened.Documents, pipeline, paths, clock);
-        var retriever = new Retriever(opened.Vectors, opened.Documents, embedder, settings, new PassageLocator(embedder, settings), options);
+        var retriever = new Retriever(opened.Vectors, opened.Words, opened.Documents, embedder, settings, new PassageLocator(embedder, settings), options);
         var answers = new AnswerService(retriever, new QueryRewriter(chat, settings), new PassageRefiner(embedder, settings), chat, settings);
         var previews = new DocumentPreviewService(opened.Documents, _extractors, paths);
         return new WorkspaceScope(workspace, paths, library, pipeline, retriever, answers, previews, opened.Sessions);

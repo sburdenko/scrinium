@@ -4,7 +4,7 @@ namespace Scrinium.Storage;
 
 internal static class SqliteSchema
 {
-    private const int Version = 3;
+    private const int Version = 4;
 
     public static void Apply(SqliteConnection connection)
     {
@@ -27,6 +27,8 @@ internal static class SqliteSchema
             Execute(connection, transaction, Sessions);
         if (current < 3)
             Execute(connection, transaction, ChunkContext);
+        if (current < 4)
+            Execute(connection, transaction, ChunkWords);
 
         Execute(connection, transaction, $"PRAGMA user_version = {Version};");
         transaction.Commit();
@@ -70,6 +72,11 @@ internal static class SqliteSchema
     private const string ChunkContext = """
         ALTER TABLE chunks ADD COLUMN section TEXT NOT NULL DEFAULT '';
         ALTER TABLE chunks ADD COLUMN content TEXT NOT NULL DEFAULT 'Prose';
+        """;
+
+    private const string ChunkWords = """
+        CREATE VIRTUAL TABLE chunk_words USING fts5(text, section, chunk_id UNINDEXED, tokenize = 'unicode61 remove_diacritics 2');
+        INSERT INTO chunk_words (text, section, chunk_id) SELECT text, section, id FROM chunks;
         """;
 
     private const string Sessions = """

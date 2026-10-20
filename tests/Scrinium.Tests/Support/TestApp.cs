@@ -29,7 +29,7 @@ public sealed class TestApp : IDisposable
         var chunker = new TextChunker(new ChunkingOptions(MaxTokens: 60, OverlapTokens: 8));
         Pipeline = new IngestionPipeline(Store, extractors, chunker, Embedder, Settings, Paths);
         Library = new DocumentLibrary(Store, Pipeline, Paths, TimeProvider.System);
-        Retriever = new Retriever(Store, Store, Embedder, Settings, new PassageLocator(Embedder, Settings), retrieval ?? new RetrievalOptions());
+        Retriever = new Retriever(Store, Store, Store, Embedder, Settings, new PassageLocator(Embedder, Settings), retrieval ?? new RetrievalOptions());
         Rewriter = new QueryRewriter(Chat, Settings);
         Answers = new AnswerService(Retriever, Rewriter, new PassageRefiner(Embedder, Settings), Chat, Settings);
         Preview = new DocumentPreviewService(Store, extractors, Paths);

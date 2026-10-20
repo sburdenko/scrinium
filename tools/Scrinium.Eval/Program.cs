@@ -4,6 +4,7 @@ using Scrinium.Core.Chat;
 using Scrinium.Core.Chunking;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Ingestion;
+using Scrinium.Core.Retrieval;
 using Scrinium.Core.Settings;
 using Scrinium.Core.Workspaces;
 using Scrinium.Eval;
@@ -32,6 +33,7 @@ try
     services.AddScriniumTextExtractors();
     services.AddScriniumOllama();
     services.AddSingleton(new TextChunker(options.Chunking));
+    services.AddSingleton(new RetrievalOptions(Search: options.Search));
     await using var provider = services.BuildServiceProvider();
 
     var settings = provider.GetRequiredService<SettingsService>();
@@ -88,7 +90,8 @@ try
         files.Count,
         results)
     {
-        Chunking = options.Chunking
+        Chunking = options.Chunking,
+        Search = options.Search
     };
 
     var markdown = ReportWriter.Markdown(run);

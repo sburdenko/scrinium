@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Scrinium.Core.Chunking;
+using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Eval;
 
@@ -13,6 +14,8 @@ public sealed record EvaluationRun(
     IReadOnlyList<CaseResult> Results)
 {
     public ChunkingOptions Chunking { get; init; } = new();
+
+    public SearchMode Search { get; init; } = SearchMode.Hybrid;
 }
 
 public static class ReportWriter
@@ -28,6 +31,7 @@ public static class ReportWriter
         report.AppendLine($"- Embedding model: `{run.EmbeddingModel}`");
         report.AppendLine($"- Documents: {run.DocumentCount}");
         report.AppendLine($"- Chunking: {Describe(run.Chunking)}");
+        report.AppendLine($"- Search: {(run.Search == SearchMode.Hybrid ? "meaning and words" : "meaning only")}");
         report.AppendLine().AppendLine("## Summary").AppendLine();
         report.AppendLine("| Measure | Result |").AppendLine("|---|---|");
         report.AppendLine($"| Cases passed | {Ratio(summary.Passed, summary.Total)} |");
