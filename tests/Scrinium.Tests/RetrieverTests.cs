@@ -158,6 +158,61 @@ public sealed class RetrieverTests : IDisposable
         Assert.Equal("Install", fragment.Section);
     }
 
+    private static async Task<TestApp> ArchiveWithAnErrorCodeAsync(TestApp app)
+    {
+        await app.ImportAndProcessAsync(app.WriteFile("faq-1.txt", "What does the error mean for you"));
+        await app.ImportAndProcessAsync(app.WriteFile("faq-2.txt", "What does this error mean today"));
+        await app.ImportAndProcessAsync(app.WriteFile("faq-3.txt", "Error meaning: what does it mean"));
+        await app.ImportAndProcessAsync(app.WriteFile("codes.txt", "E507 destination disk full"));
+        return app;
+    }
+
+    private static readonly RetrievalOptions TwoHitsLowFloor = new(TopK: 2, MinScore: 0.1, ScoreMargin: 0.1);
+
+    [Fact]
+    public async Task A_code_that_meaning_search_ranks_too_low_is_found_by_its_words()
+    {
+        var app = await ArchiveWithAnErrorCodeAsync(NewApp(TwoHitsLowFloor));
+
+        var found = Assert.IsType<RetrievalOutcome.Found>(await app.Retriever.RetrieveAsync("What does error E507 mean?"));
+
+        Assert.Contains(found.Fragments, f => f.Citation.DocumentTitle == "codes.txt");
+        Assert.True(found.Fragments.Count <= 2);
+    }
+
+    [Fact]
+    public async Task Meaning_search_alone_does_not_see_the_code()
+    {
+        var app = await ArchiveWithAnErrorCodeAsync(NewApp(TwoHitsLowFloor with { Search = SearchMode.Meaning }));
+
+        var found = Assert.IsType<RetrievalOutcome.Found>(await app.Retriever.RetrieveAsync("What does error E507 mean?"));
+
+        Assert.DoesNotContain(found.Fragments, f => f.Citation.DocumentTitle == "codes.txt");
+    }
+
+    [Fact]
+    public async Task A_question_without_identifiers_retrieves_what_meaning_search_retrieves()
+    {
+        var hybrid = await ArchiveWithAnErrorCodeAsync(NewApp(TwoHitsLowFloor));
+        var meaning = await ArchiveWithAnErrorCodeAsync(NewApp(TwoHitsLowFloor with { Search = SearchMode.Meaning }));
+
+        var fromHybrid = Assert.IsType<RetrievalOutcome.Found>(await hybrid.Retriever.RetrieveAsync("what does the error mean"));
+        var fromMeaning = Assert.IsType<RetrievalOutcome.Found>(await meaning.Retriever.RetrieveAsync("what does the error mean"));
+
+        Assert.Equal(fromMeaning.Fragments.Select(f => f.Citation.DocumentTitle), fromHybrid.Fragments.Select(f => f.Citation.DocumentTitle));
+    }
+
+    [Fact]
+    public async Task A_word_match_does_not_rescue_a_question_whose_meaning_is_unrelated()
+    {
+        var app = NewApp();
+        await app.ImportAndProcessAsync(app.WriteFile("pasta.txt", "E507 is the code on the jar of tomatoes we used for pasta with basil and garlic tonight"));
+
+        var outcome = await app.Retriever.RetrieveAsync("E507?");
+
+        Assert.IsType<RetrievalOutcome.NothingRelevant>(outcome);
+    }
+
     private static string LongNote()
     {
         var sentences = Enumerable.Range(1, 40).Select(i => $"Sentence number {i} talks about topic {i} in some detail here.");

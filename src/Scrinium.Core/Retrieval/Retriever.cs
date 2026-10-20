@@ -9,32 +9,65 @@ namespace Scrinium.Core.Retrieval;
 
 public sealed class Retriever(
     IVectorStore vectors,
+    IWordIndex words,
     IDocumentStore documents,
     IEmbeddingGenerator<string, Embedding<float>> embedder,
     ISettingsProvider settings,
     PassageLocator passageLocator,
     RetrievalOptions options)
 {
+    // Reciprocal rank fusion: the usual constant keeps one list's first place from drowning the other list.
+    private const int FusionConstant = 60;
+
     public async Task<RetrievalOutcome> RetrieveAsync(string query, CancellationToken ct = default)
     {
         var model = settings.Current.EmbeddingModel;
         var generated = await embedder.GenerateAsync([query], new EmbeddingGenerationOptions { ModelId = model }, ct);
         var queryVector = generated[0].Vector.ToArray();
-        var candidates = await vectors.SearchAsync(queryVector, model, options.TopK, ct);
+        var byMeaning = await vectors.SearchAsync(queryVector, model, options.TopK, ct);
 
-        if (candidates.Count == 0)
+        if (byMeaning.Count == 0)
             return new RetrievalOutcome.ArchiveEmpty();
 
-        var best = candidates[0];
-        var relevant = candidates
-            .Where(hit => hit.Score >= options.MinScore && hit.Score >= best.Score - options.ScoreMargin)
-            .ToList();
-
-        if (relevant.Count == 0)
+        var best = byMeaning[0];
+        if (best.Score < options.MinScore)
             return new RetrievalOutcome.NothingRelevant(best.DocumentTitle, best.Score);
 
-        return new RetrievalOutcome.Found(await BuildFragmentsAsync(relevant, queryVector, ct));
+        var byWords = await FindByWordsAsync(query, queryVector, model, ct);
+        return new RetrievalOutcome.Found(await BuildFragmentsAsync(Fuse(byMeaning, byWords, best.Score), queryVector, ct));
     }
+
+    private async Task<IReadOnlyList<ChunkHit>> FindByWordsAsync(string query, float[] queryVector, string model, CancellationToken ct)
+    {
+        var terms = options.Search == SearchMode.Hybrid ? SearchTerms.Identifiers(query) : [];
+        if (terms.Count == 0)
+            return [];
+
+        var normalized = VectorMath.Normalize(queryVector);
+        var matches = await words.FindAsync(terms, model, options.TopK, ct);
+        return matches
+            .Select(match => new ChunkHit(match.Chunk, match.DocumentTitle, VectorMath.Dot(normalized, match.Embedding)))
+            .Where(hit => !double.IsNegativeInfinity(hit.Score))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Every hit must reach the floor. Meaning hits must also stay close to the best one; word hits may not, because
+    /// an exact identifier is the case where the embedding ranks the right chunk too low.
+    /// </summary>
+    private IReadOnlyList<ChunkHit> Fuse(IReadOnlyList<ChunkHit> byMeaning, IReadOnlyList<ChunkHit> byWords, double best) =>
+        Ranked(byMeaning, hit => hit.Score >= options.MinScore && hit.Score >= best - options.ScoreMargin)
+            .Concat(Ranked(byWords, hit => hit.Score >= options.MinScore))
+            .GroupBy(entry => entry.Hit.Chunk.Id)
+            .Select(group => (group.First().Hit, Weight: group.Sum(entry => entry.Weight)))
+            .OrderByDescending(entry => entry.Weight)
+            .ThenByDescending(entry => entry.Hit.Score)
+            .Take(options.TopK)
+            .Select(entry => entry.Hit)
+            .ToList();
+
+    private static IEnumerable<(ChunkHit Hit, double Weight)> Ranked(IReadOnlyList<ChunkHit> hits, Func<ChunkHit, bool> keep) =>
+        hits.Select((hit, index) => (Hit: hit, Weight: 1.0 / (FusionConstant + index + 1))).Where(entry => keep(entry.Hit));
 
     private async Task<IReadOnlyList<ContextFragment>> BuildFragmentsAsync(
         IReadOnlyList<ChunkHit> hits,

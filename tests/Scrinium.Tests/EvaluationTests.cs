@@ -1,4 +1,5 @@
 using Scrinium.Core.Chunking;
+using Scrinium.Core.Retrieval;
 using Scrinium.Core.Chat;
 using Scrinium.Core.Documents;
 using Scrinium.Core.Extraction;
@@ -64,6 +65,17 @@ public class EvalOptionsTests
 
         Assert.Equal((CodeBlocks.WithText, SectionPaths.Omit), (options.Chunking.CodeBlocks, options.Chunking.SectionPaths));
     }
+
+    [Fact]
+    public void Search_defaults_to_hybrid_and_can_be_limited_to_meaning()
+    {
+        Assert.Equal(SearchMode.Hybrid, EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]).Search);
+        Assert.Equal(SearchMode.Meaning, EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--search", "meaning"]).Search);
+    }
+
+    [Fact]
+    public void An_unknown_search_mode_is_rejected() =>
+        Assert.Throws<ArgumentException>(() => EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--search", "magic"]));
 
     [Theory]
     [InlineData("--code-blocks", "sometimes")]
@@ -512,6 +524,16 @@ public class EvaluationReportTests
         var markdown = ReportWriter.Markdown(run);
 
         Assert.Contains("- Chunking: code blocks with text, section paths omitted", markdown);
+    }
+
+    [Theory]
+    [InlineData(SearchMode.Hybrid, "- Search: meaning and words")]
+    [InlineData(SearchMode.Meaning, "- Search: meaning only")]
+    public void The_report_names_how_the_archive_was_searched(SearchMode search, string line)
+    {
+        var run = new EvaluationRun("Demo", DateTimeOffset.UnixEpoch, "c", "e", 1, [Result("ok-case", true, 1)]) { Search = search };
+
+        Assert.Contains(line, ReportWriter.Markdown(run));
     }
 
     [Fact]

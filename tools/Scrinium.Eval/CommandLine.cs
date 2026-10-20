@@ -1,4 +1,5 @@
 using Scrinium.Core.Chunking;
+using Scrinium.Core.Retrieval;
 
 namespace Scrinium.Eval;
 
@@ -14,6 +15,8 @@ public sealed record EvalOptions(
 {
     public ChunkingOptions Chunking { get; init; } = new();
 
+    public SearchMode Search { get; init; } = SearchMode.Hybrid;
+
     public const string Usage = """
         Usage: Scrinium.Eval --documents <folder> --cases <file.json> [options]
 
@@ -25,6 +28,7 @@ public sealed record EvalOptions(
           --only <id,id,...>         run only the listed case ids
           --code-blocks <choice>     own (default): code in chunks of its own; with-text: code stays in the text
           --section-paths <choice>   prepend (default): chunks carry their heading path; omit: they do not
+          --search <choice>          hybrid (default): meaning and the identifiers a question names; meaning: meaning only
         """;
 
     public static EvalOptions Parse(string[] args)
@@ -59,7 +63,8 @@ public sealed record EvalOptions(
         {
             Chunking = new ChunkingOptions(
                 CodeBlocks: Choice(values, "--code-blocks", new() { ["own"] = CodeBlocks.OwnChunks, ["with-text"] = CodeBlocks.WithText }, CodeBlocks.OwnChunks),
-                SectionPaths: Choice(values, "--section-paths", new() { ["prepend"] = SectionPaths.Prepend, ["omit"] = SectionPaths.Omit }, SectionPaths.Prepend))
+                SectionPaths: Choice(values, "--section-paths", new() { ["prepend"] = SectionPaths.Prepend, ["omit"] = SectionPaths.Omit }, SectionPaths.Prepend)),
+            Search = Choice(values, "--search", new() { ["hybrid"] = SearchMode.Hybrid, ["meaning"] = SearchMode.Meaning }, SearchMode.Hybrid)
         };
     }
 

@@ -219,10 +219,10 @@ sequenceDiagram
     You->>UI: question
     UI->>Core: ask(question, last 6 messages)
     Core->>Emb: embed the question
-    Core->>DB: nearest chunks
-    DB-->>Core: top 6 with similarity scores
+    Core->>DB: nearest chunks, and chunks that hold the codes or names the question quotes
+    DB-->>Core: top 6 of each with similarity scores
     Core->>Emb: embed the sentences inside the hits
-    Note over Core: keep hits ≥ 0.35 and within 0.10 of the best,<br/>pick the closest sentence in each
+    Note over Core: keep hits ≥ 0.35 and within 0.10 of the best (word hits only need 0.35),<br/>merge both rankings, pick the closest sentence in each
     alt nothing close enough
         Core-->>UI: closest document and its similarity (no model call)
     else
@@ -324,7 +324,7 @@ These are checked by `ArchitectureTests` on every build, not left to review:
 | Chunking | Recursive: headings, blank lines, sentences, words. About 400 tokens per chunk with 50 tokens of overlap that starts at a sentence. Fenced code blocks become chunks of their own, marked as code. Every chunk keeps its page, character offset and the path of the headings above it, which goes into its embedding and into the prompt |
 | Embeddings | Batches of 32 through `IEmbeddingGenerator`. The model name is stored per document, and search only uses documents indexed with the current model |
 | Storage | One SQLite file. Vectors are normalized `float32` blobs compared by cosine similarity. Finished exchanges are saved per session with their citations; failed answers are not saved |
-| Retrieval | Top 6 chunks, similarity at least 0.35 and within 0.10 of the best. Neighbouring chunks are added to the context up to about 3000 tokens |
+| Retrieval | Hybrid: the top 6 chunks by meaning, plus the top 6 that contain an identifier the question names (a code such as `E507`, a flag, a path, a constant, quoted text), found with SQLite FTS5 in the same database. Every hit needs a similarity of at least 0.35; meaning hits must also be within 0.10 of the best. The two rankings are merged by reciprocal rank fusion. A question without identifiers is searched by meaning only. Neighbouring chunks are added to the context up to about 3000 tokens |
 | Citations | The sentence closest to the question inside each hit. A line wrap inside a PDF sentence does not split it; list items and lines ending in punctuation do |
 | Answering | Last 6 messages plus the numbered fragments go to `IChatClient`; the reply is streamed |
 | Models | Default `bge-m3` for embeddings and `qwen3-coder:30b` for answers; both are chosen in Settings |

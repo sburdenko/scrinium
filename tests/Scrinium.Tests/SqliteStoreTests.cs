@@ -158,7 +158,7 @@ public sealed class SqliteStoreTests : IDisposable
         {
             connection.Open();
             using var downgrade = connection.CreateCommand();
-            downgrade.CommandText = "ALTER TABLE chunks DROP COLUMN section; ALTER TABLE chunks DROP COLUMN content; PRAGMA user_version = 2;";
+            downgrade.CommandText = "DROP TABLE chunk_words; ALTER TABLE chunks DROP COLUMN section; ALTER TABLE chunks DROP COLUMN content; PRAGMA user_version = 2;";
             downgrade.ExecuteNonQuery();
         }
 
@@ -167,5 +167,112 @@ public sealed class SqliteStoreTests : IDisposable
         Assert.Equal("kept", hit.Chunk.Text);
         Assert.Equal("", hit.Chunk.Section);
         Assert.Equal(ChunkContent.Prose, hit.Chunk.Content);
+    }
+
+    private async Task<Document> ReadyDocumentAsync(string model, params string[] chunkTexts)
+    {
+        var doc = NewDocument();
+        await _store.AddAsync(doc);
+        await _store.ReplaceChunksAsync(doc.Id, chunkTexts.Select((text, i) => NewChunk(doc, i, text, 1, 0)).ToList(), model);
+        return doc;
+    }
+
+    [Fact]
+    public async Task The_word_index_finds_a_chunk_by_an_identifier_it_contains()
+    {
+        await ReadyDocumentAsync("m", "| E507 | The destination disk is full |", "| E401 | The API key has expired |", "Plain text about disks.");
+
+        var matches = await _store.FindAsync(["E507"], "m", 5);
+
+        Assert.Equal("| E507 | The destination disk is full |", Assert.Single(matches).Chunk.Text);
+        Assert.Equal([1f, 0f], matches[0].Embedding);
+    }
+
+    [Fact]
+    public async Task The_word_index_matches_an_identifier_with_punctuation_as_a_phrase()
+    {
+        await ReadyDocumentAsync("m", "Send the X-Brightmoor-Key header.", "The key goes to Brightmoor in a header called X.");
+
+        var matches = await _store.FindAsync(["X-Brightmoor-Key"], "m", 5);
+
+        Assert.Equal("Send the X-Brightmoor-Key header.", Assert.Single(matches).Chunk.Text);
+    }
+
+    [Fact]
+    public async Task The_word_index_ranks_chunks_with_more_of_the_terms_first()
+    {
+        await ReadyDocumentAsync("m", "P1 once among several other words here", "P1 and again P1 here", "P4 can wait.");
+
+        var matches = await _store.FindAsync(["P1"], "m", 5);
+
+        Assert.Equal(2, matches.Count);
+        Assert.Equal("P1 and again P1 here", matches[0].Chunk.Text);
+    }
+
+    [Fact]
+    public async Task The_word_index_only_returns_ready_documents_of_the_current_model()
+    {
+        await ReadyDocumentAsync("old-model", "E507 under another model.");
+        var pending = NewDocument("pending.md");
+        await _store.AddAsync(pending);
+
+        Assert.Empty(await _store.FindAsync(["E507"], "m", 5));
+    }
+
+    [Fact]
+    public async Task The_word_index_follows_reindexing_and_deletion()
+    {
+        var doc = await ReadyDocumentAsync("m", "E507 old text.");
+        await _store.ReplaceChunksAsync(doc.Id, [NewChunk(doc, 0, "E401 new text.", 1, 0)], "m");
+
+        Assert.Empty(await _store.FindAsync(["E507"], "m", 5));
+        Assert.Single(await _store.FindAsync(["E401"], "m", 5));
+
+        await _store.DeleteAsync(doc.Id);
+
+        Assert.Empty(await _store.FindAsync(["E401"], "m", 5));
+    }
+
+    [Theory]
+    [InlineData("say \"hi\" now")]
+    [InlineData("NOT")]
+    [InlineData("a*b OR c")]
+    [InlineData("(E507")]
+    public async Task Terms_that_look_like_query_syntax_are_searched_as_plain_text(string term)
+    {
+        await ReadyDocumentAsync("m", "E507 is a disk error.");
+
+        var matches = await _store.FindAsync([term], "m", 5);
+
+        Assert.True(matches.Count <= 1);
+    }
+
+    [Fact]
+    public async Task No_terms_find_nothing()
+    {
+        await ReadyDocumentAsync("m", "E507 is a disk error.");
+
+        Assert.Empty(await _store.FindAsync([], "m", 5));
+    }
+
+    [Fact]
+    public async Task A_database_from_before_the_word_index_gets_its_chunks_indexed()
+    {
+        var path = Path.Combine(_temp.Path, "before-words.db");
+        var doc = NewDocument();
+        var old = new SqliteStore(path);
+        await old.AddAsync(doc);
+        await old.ReplaceChunksAsync(doc.Id, [NewChunk(doc, 0, "E507 is a disk error.", 1, 0)], "m");
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            connection.Open();
+            using var downgrade = connection.CreateCommand();
+            downgrade.CommandText = "DROP TABLE chunk_words; PRAGMA user_version = 3;";
+            downgrade.ExecuteNonQuery();
+        }
+
+        var matches = await new SqliteStore(path).FindAsync(["E507"], "m", 5);
+
+        Assert.Equal("E507 is a disk error.", Assert.Single(matches).Chunk.Text);
     }
 }
