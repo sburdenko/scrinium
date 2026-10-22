@@ -48,10 +48,6 @@ public sealed record EvalOptions(
         string Required(string key) =>
             values.TryGetValue(key, out var value) ? value : throw new ArgumentException($"{key} is required.");
 
-        double? minPass = values.TryGetValue("--min-pass", out var raw)
-            ? double.Parse(raw, CultureInfo.InvariantCulture)
-            : null;
-
         var retrieval = new RetrievalOptions();
         return new EvalOptions(
             Required("--documents"),
@@ -60,7 +56,7 @@ public sealed record EvalOptions(
             values.GetValueOrDefault("--chat-model"),
             values.GetValueOrDefault("--embedding-model"),
             values.GetValueOrDefault("--ollama-url"),
-            minPass,
+            Fraction(values, "--min-pass"),
             values.TryGetValue("--only", out var only)
                 ? only.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 : null)
@@ -70,8 +66,8 @@ public sealed record EvalOptions(
                 SectionPaths: Choice(values, "--section-paths", new() { ["prepend"] = SectionPaths.Prepend, ["omit"] = SectionPaths.Omit }, SectionPaths.Prepend)),
             Retrieval = retrieval with
             {
-                MinScore = Fraction(values, "--min-score", retrieval.MinScore),
-                ScoreMargin = Fraction(values, "--score-margin", retrieval.ScoreMargin),
+                MinScore = Fraction(values, "--min-score") ?? retrieval.MinScore,
+                ScoreMargin = Fraction(values, "--score-margin") ?? retrieval.ScoreMargin,
                 Search = Choice(values, "--search", new() { ["hybrid"] = SearchMode.Hybrid, ["meaning"] = SearchMode.Meaning }, retrieval.Search)
             }
         };
@@ -87,10 +83,10 @@ public sealed record EvalOptions(
             : throw new ArgumentException($"{key} must be one of: {string.Join(", ", choices.Keys)}.");
     }
 
-    private static double Fraction(Dictionary<string, string> values, string key, double fallback)
+    private static double? Fraction(Dictionary<string, string> values, string key)
     {
         if (!values.TryGetValue(key, out var raw))
-            return fallback;
+            return null;
 
         return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is >= 0 and <= 1
             ? value
