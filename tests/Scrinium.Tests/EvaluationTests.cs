@@ -105,11 +105,20 @@ public class EvalOptionsTests
     [InlineData("--min-score", "high")]
     [InlineData("--score-margin", "2")]
     [InlineData("--score-margin", "wide")]
-    public void A_retrieval_threshold_outside_zero_to_one_is_rejected(string option, string value)
+    [InlineData("--min-pass", "2")]
+    [InlineData("--min-pass", "abc")]
+    public void A_fraction_outside_zero_to_one_is_rejected(string option, string value)
     {
         var error = Assert.Throws<ArgumentException>(() => EvalOptions.Parse(["--documents", "d", "--cases", "c.json", option, value]));
 
         Assert.Contains(option, error.Message);
+    }
+
+    [Fact]
+    public void The_pass_threshold_is_optional_and_read_as_a_fraction()
+    {
+        Assert.Null(EvalOptions.Parse(["--documents", "d", "--cases", "c.json"]).MinPass);
+        Assert.Equal(0.9, EvalOptions.Parse(["--documents", "d", "--cases", "c.json", "--min-pass", "0.9"]).MinPass);
     }
 
     [Fact]
