@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Xml.Linq;
+using Scrinium.Tests.Support;
 
 namespace Scrinium.Tests;
 
@@ -77,6 +79,23 @@ public sealed class ArchitectureTests
         Assert.Empty(mutable.Select(Describe));
     }
 
+    [Theory]
+    [InlineData("Microsoft.Data.Sqlite", "Scrinium.Storage")]
+    [InlineData("PdfPig", "Scrinium.Extraction")]
+    [InlineData("HtmlAgilityPack", "Scrinium.Extraction")]
+    [InlineData("DocumentFormat.OpenXml", "Scrinium.Extraction")]
+    [InlineData("Avalonia", "Scrinium.Desktop")]
+    [InlineData("OllamaSharp", "Scrinium.Ollama")]
+    public void A_package_is_declared_only_by_the_project_that_owns_it(string package, string owner)
+    {
+        var declaring = Directory.GetFiles(Path.Combine(RepositoryPaths.Root(), "src"), "*.csproj", SearchOption.AllDirectories)
+            .Where(project => DeclaresPackage(project, package))
+            .Select(project => Path.GetFileNameWithoutExtension(project))
+            .ToList();
+
+        Assert.Equal([owner], declaring);
+    }
+
     private static void AssertScriniumReferences(Assembly assembly, params string[] allowed)
     {
         var actual = assembly.GetReferencedAssemblies()
@@ -100,6 +119,11 @@ public sealed class ArchitectureTests
                 $"{assembly.GetName().Name} {(references ? "references" : "must reference")} {prefix}");
         }
     }
+
+    private static bool DeclaresPackage(string projectFile, string package) =>
+        XDocument.Load(projectFile)
+            .Descendants("PackageReference")
+            .Any(reference => ((string?)reference.Attribute("Include"))?.StartsWith(package, StringComparison.Ordinal) == true);
 
     private static IEnumerable<PropertyInfo> PublicInstanceProperties(Assembly assembly) =>
         assembly.GetExportedTypes()
