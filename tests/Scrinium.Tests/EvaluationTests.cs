@@ -183,20 +183,11 @@ public class CaseLoaderTests
 
 public class DemoDatasetTests
 {
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Scrinium.slnx")))
-            directory = directory.Parent;
-
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
-    }
-
     public static IEnumerable<object[]> Companies() =>
-        Directory.GetDirectories(Path.Combine(RepositoryRoot(), "demo"))
+        Directory.GetDirectories(Path.Combine(RepositoryPaths.Root(), "demo"))
             .Select(directory => new object[] { Path.GetFileName(directory) });
 
-    private static string Folder(string company) => Path.Combine(RepositoryRoot(), "demo", company);
+    private static string Folder(string company) => Path.Combine(RepositoryPaths.Root(), "demo", company);
 
     private static readonly IReadOnlyList<ITextExtractor> Extractors = ExtractionServices.CreateExtractors();
 
